@@ -1,0 +1,87 @@
+{
+  "timestamp": "2025-09-04T04:53:10.871386",
+  "account": {
+    "krw_balance": 327680.0,
+    "holdings": {
+      "BTC": 0.0012859026727992024,
+      "ETH": 0.025839392470512198,
+      "XRP": 32.17706237424547,
+      "DOGE": 337.7848184818482,
+      "SOL": 0.2793553053565336
+    }
+  },
+  "positions": {
+    "KRW-BTC": {
+      "type": "long",
+      "entry_price": 155455000.0,
+      "quantity": 0.0012859026727992024,
+      "entry_time": "2025-09-04 01:09:56.572779"
+    },
+    "KRW-ETH": {
+      "type": "long",
+      "entry_price": 6189000.0,
+      "quantity": 0.025839392470512198,
+      "entry_time": "2025-09-04 01:09:57.570237"
+    },
+    "KRW-XRP": {
+      "type": "long",
+      "entry_price": 3976.0,
+      "quantity": 32.17706237424547,
+      "entry_time": "2025-09-04 01:09:58.570620"
+    },
+    "KRW-DOGE": {
+      "type": "long",
+      "entry_price": 303.0,
+      "quantity": 337.7848184818482,
+      "entry_time": "2025-09-04 01:09:59.582803"
+    },
+    "KRW-SOL": {
+      "type": "long",
+      "entry_price": 293100.0,
+      "quantity": 0.2793553053565336,
+      "entry_time": "2025-09-04 01:10:00.583014"
+    }
+  },
+  "trades": [
+    {
+      "timestamp": "2025-09-04T01:09:56.572779",
+      "type": "buy",
+      "symbol": "BTC",
+      "price": 155455000.0,
+      "quantity": 0.0012859026727992024,
+      "fee": 100.0
+    },
+    {
+      "timestamp": "2025-09-04T01:09:57.570237",
+      "type": "buy",
+      "symbol": "ETH",
+      "price": 6189000.0,
+      "quantity": 0.025839392470512198,
+      "fee": 80.0
+    },
+    {
+      "timestamp": "2025-09-04T01:09:58.570620",
+      "type": "buy",
+      "symbol": "XRP",
+      "price": 3976.0,
+      "quantity": 32.17706237424547,
+      "fee": 64.0
+    },
+    {
+      "timestamp": "2025-09-04T01:09:59.582803",
+      "type": "buy",
+      "symbol": "DOGE",
+      "price": 303.0,
+      "quantity": 337.7848184818482,
+      "fee": 51.2
+    },
+    {
+      "timestamp": "2025-09-04T01:10:00.583014",
+      "type": "buy",
+      "symbol": "SOL",
+      "price": 293100.0,
+      "quantity": 0.2793553053565336,
+      "fee": 40.96
+    }
+  ]
+}
