@@ -74,8 +74,8 @@ class Config:
                     'commission': 0.0005
                 }
                 self.risk_params = {
-                    'stop_loss_pct': 0.02,
-                    'take_profit_pct': 0.03,
+                    'stop_loss_pct': 0.01,
+                    'take_profit_pct': 0.02,
                     'max_daily_loss': 0.02,
                     'risk_per_trade': 0.02
                 }

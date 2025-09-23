@@ -243,17 +243,14 @@ class PaperTradingSimulator:
             
             # 코인별 설정
             if 'DOGE' in market:
-                stop_loss_pct = 0.025   # 2.5% (너무 타이트하면 안됨)
-                take_profit_pct = 0.03  # 3%
+                stop_loss_pct = 0.015
+                take_profit_pct = 0.025
             elif 'ETH' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.03  # 3%
-            elif 'XRP' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
-            else:  # SOL
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
+                stop_loss_pct = 0.025
+                take_profit_pct = 0.04
+            else:
+                stop_loss_pct = 0.02
+                take_profit_pct = 0.03
             
             current_price = current_prices[market]
             entry_price = position['entry_price']

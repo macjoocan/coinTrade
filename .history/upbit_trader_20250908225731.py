@@ -74,8 +74,8 @@ class Config:
                     'commission': 0.0005
                 }
                 self.risk_params = {
-                    'stop_loss_pct': 0.02,
-                    'take_profit_pct': 0.03,
+                    'stop_loss_pct': 0.05,
+                    'take_profit_pct': 0.1,
                     'max_daily_loss': 0.02,
                     'risk_per_trade': 0.02
                 }
@@ -783,11 +783,11 @@ class AdvancedTradingStrategy:
                 sell_score += 2  # 과매수이고 하락 신호
             
             # 신호 결정 (6점 이상)
-            if buy_score >= 6: 
+            if buy_score >= 5: # 테스트 상 일단 5로 조정
                 signal = 'buy'
                 # 리스크 기반 포지션 크기 계산
                 position_size = self.risk_manager.calculate_position_size(current_price, volatility)
-            elif sell_score >= 5:
+            elif sell_score >= 6:
                 signal = 'sell'
                 position_size = self.risk_manager.calculate_position_size(current_price, volatility)
             

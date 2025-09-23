@@ -74,8 +74,8 @@ class Config:
                     'commission': 0.0005
                 }
                 self.risk_params = {
-                    'stop_loss_pct': 0.02,
-                    'take_profit_pct': 0.03,
+                    'stop_loss_pct': 0.05,
+                    'take_profit_pct': 0.1,
                     'max_daily_loss': 0.02,
                     'risk_per_trade': 0.02
                 }
@@ -195,18 +195,19 @@ class UpbitTrader:
         
         jwt_token = jwt.encode(payload, self.secret_key, algorithm='HS256')
         return {'Authorization': f'Bearer {jwt_token}'}
-
+    
     def _api_call(self, method: str, endpoint: str, params=None, json_data=None, auth_required=True):
+        """API 호출 래퍼 (에러 처리 포함)"""
         self._rate_limit()
         
-        url = f"{self.server_url}{endpoint}"  # url 정의 추가
+        url = f"{self.server_url}{endpoint}"
         headers = self._get_headers(json_data or params) if auth_required else {}
         
         try:
             if method == 'GET':
-                response = requests.get(url, params=params, headers=headers, timeout=30)
+                response = requests.get(url, params=params, headers=headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=json_data, headers=headers, timeout=30)
+                response = requests.post(url, json=json_data, headers=headers)
             else:
                 raise ValueError(f"Unsupported method: {method}")
             
@@ -223,38 +224,6 @@ class UpbitTrader:
         except Exception as e:
             logger.error(f"예상치 못한 에러: {e}")
             raise
-    
-    # def _api_call(self, method: str, endpoint: str, params=None, json_data=None, auth_required=True):
-        
-    #     response = requests.get(url, params=params, headers=headers, timeout=10)
-        
-    #     """API 호출 래퍼 (에러 처리 포함)"""
-    #     self._rate_limit()
-        
-    #     url = f"{self.server_url}{endpoint}"
-    #     headers = self._get_headers(json_data or params) if auth_required else {}
-        
-    #     try:
-    #         if method == 'GET':
-    #             response = requests.get(url, params=params, headers=headers, timeout=10)
-    #         elif method == 'POST':
-    #             response = requests.post(url, json=json_data, headers=headers, timeout=10)
-    #         else:
-    #             raise ValueError(f"Unsupported method: {method}")
-            
-    #         response.raise_for_status()
-    #         return response.json()
-            
-    #     except requests.exceptions.HTTPError as e:
-    #         if e.response.status_code == 429:
-    #             logger.warning("API 호출 제한 도달. 10초 대기...")
-    #             time.sleep(10)
-    #             return self._api_call(method, endpoint, params, json_data, auth_required)
-    #         logger.error(f"API 호출 실패: {e}")
-    #         raise
-    #     except Exception as e:
-    #         logger.error(f"예상치 못한 에러: {e}")
-    #         raise
     
     def get_balances(self) -> List[Dict]:
         """계좌 잔고 조회"""
@@ -539,8 +508,8 @@ class BacktestEngine:
         self.trades = []
         self.equity_curve = []
         
-    def execute_trade(self, date: datetime, price: float, signal: str, position_size: float = None,):
-
+    def execute_trade(self, date: datetime, price: float, signal: str, 
+                     position_size: float = None):
         """개선된 거래 실행"""
         commission = 0
         
@@ -783,11 +752,11 @@ class AdvancedTradingStrategy:
                 sell_score += 2  # 과매수이고 하락 신호
             
             # 신호 결정 (6점 이상)
-            if buy_score >= 6: 
+            if buy_score >= 6:
                 signal = 'buy'
                 # 리스크 기반 포지션 크기 계산
                 position_size = self.risk_manager.calculate_position_size(current_price, volatility)
-            elif sell_score >= 5:
+            elif sell_score >= 6:
                 signal = 'sell'
                 position_size = self.risk_manager.calculate_position_size(current_price, volatility)
             

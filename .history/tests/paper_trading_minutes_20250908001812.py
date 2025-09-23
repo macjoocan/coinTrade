@@ -175,8 +175,8 @@ class PaperTradingSimulator:
                     'commission': 0.0005
                 }
                 self.risk_params = {
-                    'stop_loss_pct': 0.02,
-                    'take_profit_pct': 0.04,
+                    'stop_loss_pct': 0.03,
+                    'take_profit_pct': 0.05,
                     'max_daily_loss': 0.02,
                     'risk_per_trade': 0.02
                 }
@@ -187,7 +187,7 @@ class PaperTradingSimulator:
         """시장 분석"""
         try:
             # 15분봉 데이터로 변경
-            candles = self.trader.get_candles(market, interval='minutes', unit=15, count=200)
+            candles = self.trader.get_candles(market, interval='minutes', unit=15, count=100)
             
             if not candles:
                 return {'error': '데이터 수집 실패'}
@@ -216,7 +216,7 @@ class PaperTradingSimulator:
             # 현재가 조회
             ticker = self.trader.get_ticker(market)
             current_price = float(ticker['trade_price'])
-                        
+            
             return {
                 'market': market,
                 'current_price': current_price,
@@ -235,36 +235,20 @@ class PaperTradingSimulator:
     
     def check_positions(self, current_prices: Dict[str, float]):
         """포지션 체크 (손절/익절)"""
-        positions_to_check = list(self.positions.items())
-        
-        for market, position in positions_to_check:
+        for market, position in self.positions.items():
             if market not in current_prices:
                 continue
             
-            # 코인별 설정
-            if 'DOGE' in market:
-                stop_loss_pct = 0.025   # 2.5% (너무 타이트하면 안됨)
-                take_profit_pct = 0.03  # 3%
-            elif 'ETH' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.03  # 3%
-            elif 'XRP' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
-            else:  # SOL
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
-            
             current_price = current_prices[market]
             entry_price = position['entry_price']
-            position_type = position['type']  # 이 줄이 누락되었습니다
+            position_type = position['type']
             
             # 손절 체크
             if self.risk_manager.check_stop_loss(
                 entry_price, current_price, 
                 PositionType.LONG if position_type == 'long' else PositionType.SHORT
             ):
-                print(f"⚠️ {market} 손절매 신호! (-{stop_loss_pct*100}%)")
+                print(f"⚠️ {market} 손절매 신호!")
                 self.execute_trade(market, 'sell', current_price)
             
             # 익절 체크
@@ -272,7 +256,7 @@ class PaperTradingSimulator:
                 entry_price, current_price,
                 PositionType.LONG if position_type == 'long' else PositionType.SHORT
             ):
-                print(f"✅ {market} 익절매 신호! (+{take_profit_pct*100}%)")
+                print(f"✅ {market} 익절매 신호!")
                 self.execute_trade(market, 'sell', current_price)
     
     def execute_trade(self, market: str, signal: str, price: float):
@@ -331,7 +315,7 @@ class PaperTradingSimulator:
                 
                 del self.positions[market]
     
-    def run_simulation(self, duration_minutes=60, interval_seconds=30):
+    def ticker = (self, duration_minutes=60, interval_seconds=30):
         """시뮬레이션 실행"""
         print("🚀 Paper Trading 시작")
         print(f"초기 자본: {self.account.initial_krw:,.0f} KRW")
@@ -362,23 +346,11 @@ class PaperTradingSimulator:
                 # 현재가 수집
                 current_prices = {}
                 for market in self.markets:
-                    try:
-                        ticker = self.trader.get_ticker(market)
-                        if ticker:
-                            current_prices[market] = float(ticker['trade_price'])
-                            symbol = market.split('-')[1]
-                            current_prices[symbol] = current_prices[market]
-                        consecutive_errors = 0  # 성공 시 리셋
-                    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-                        print(f"⚠️ 네트워크 타임아웃: {market}")
-                        consecutive_errors += 1
-                        if consecutive_errors > 5:
-                            print("연속 에러 5회 초과 - 잠시 대기")
-                            time.sleep(30)
-                        continue  # 다음 마켓으로
-                    except Exception as e:
-                        print(f"❌ 오류: {market} - {e}")
-                        continue
+                    ticker = self.trader.get_ticker(market)
+                    if ticker:
+                        current_prices[market] = float(ticker['trade_price'])
+                        symbol = market.split('-')[1]
+                        current_prices[symbol] = current_prices[market]
                 
                 # 포트폴리오 가치
                 portfolio_value = self.account.get_portfolio_value(current_prices)
@@ -533,8 +505,7 @@ def main():
     print("=" * 60)
     
     # 설정
-    # markets = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE", "KRW-SOL"]
-    markets = ["KRW-ETH", "KRW-XRP", "KRW-DOGE", "KRW-SOL"]  # BTC 제외
+    markets = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE", "KRW-SOL"]
     initial_capital = 1000000  # 초기 자본
     
     # 시뮬레이터 생성
@@ -551,7 +522,7 @@ def main():
     
     if choice == "1":
         duration = 5
-        interval = 30
+        interval = 10
     elif choice == "2":
         duration = 30
         interval = 30

@@ -216,7 +216,14 @@ class PaperTradingSimulator:
             # 현재가 조회
             ticker = self.trader.get_ticker(market)
             current_price = float(ticker['trade_price'])
-                        
+            
+            if 'DOGE' in market:
+                # DOGE는 변동성이 높으므로 타이트하게
+                self.risk_manager.stop_loss_pct = 0.015
+            elif 'ETH' in market:
+                # ETH는 안정적이므로 여유있게
+                self.risk_manager.stop_loss_pct = 0.025
+        
             return {
                 'market': market,
                 'current_price': current_price,
@@ -235,36 +242,23 @@ class PaperTradingSimulator:
     
     def check_positions(self, current_prices: Dict[str, float]):
         """포지션 체크 (손절/익절)"""
+        # 딕셔너리 복사본으로 순회
         positions_to_check = list(self.positions.items())
         
         for market, position in positions_to_check:
             if market not in current_prices:
                 continue
             
-            # 코인별 설정
-            if 'DOGE' in market:
-                stop_loss_pct = 0.025   # 2.5% (너무 타이트하면 안됨)
-                take_profit_pct = 0.03  # 3%
-            elif 'ETH' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.03  # 3%
-            elif 'XRP' in market:
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
-            else:  # SOL
-                stop_loss_pct = 0.02    # 2%
-                take_profit_pct = 0.025 # 2.5%
-            
             current_price = current_prices[market]
             entry_price = position['entry_price']
-            position_type = position['type']  # 이 줄이 누락되었습니다
+            position_type = position['type']
             
             # 손절 체크
             if self.risk_manager.check_stop_loss(
                 entry_price, current_price, 
                 PositionType.LONG if position_type == 'long' else PositionType.SHORT
             ):
-                print(f"⚠️ {market} 손절매 신호! (-{stop_loss_pct*100}%)")
+                print(f"⚠️ {market} 손절매 신호!")
                 self.execute_trade(market, 'sell', current_price)
             
             # 익절 체크
@@ -272,7 +266,7 @@ class PaperTradingSimulator:
                 entry_price, current_price,
                 PositionType.LONG if position_type == 'long' else PositionType.SHORT
             ):
-                print(f"✅ {market} 익절매 신호! (+{take_profit_pct*100}%)")
+                print(f"✅ {market} 익절매 신호!")
                 self.execute_trade(market, 'sell', current_price)
     
     def execute_trade(self, market: str, signal: str, price: float):
