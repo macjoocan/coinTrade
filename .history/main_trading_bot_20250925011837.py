@@ -12,21 +12,6 @@ from config import TRADING_PAIRS
 import sys
 import io
 
-# 한글/이모지 인코딩 문제 해결
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
-
-# 로깅 설정 - 인코딩 추가
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('trading.log', encoding='utf-8'),  # UTF-8 인코딩 추가
-        logging.StreamHandler(sys.stdout)  # 수정된 stdout 사용
-    ]
-)
-logger = logging.getLogger(__name__)
-
 # 로깅 설정
 logging.basicConfig(
     level=logging.INFO,

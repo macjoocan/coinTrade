@@ -100,77 +100,77 @@ class ImprovedStrategy:
         
     #     return score, details
 
-    def calculate_entry_score(self, indicators):
-        """진입 조건 점수 계산 (더 엄격한 버전)"""
-        score = 0
-        details = []
-        
-        # 1. 추세 조건 (최대 3점) - 기준 강화
-        sma_20 = indicators.get('sma_20', 0)
-        sma_50 = indicators.get('sma_50', 0)
-        price = indicators.get('price', 0)
-        
-        if sma_20 > sma_50 and price > sma_20:
-            score += 2.5
-            details.append("강한 상승 추세 (+2.5)")
-        elif sma_20 > sma_50:
-            score += 1.5
-            details.append("상승 추세 (+1.5)")
-        elif price > sma_20:
-            score += 0.5
-            details.append("단기 상승 (+0.5)")
-        
-        # 2. RSI 조건 (최대 3점) - 범위 조정
-        rsi = indicators.get('rsi', 50)
-        if 30 < rsi < 40:  # 과매도 영역
-            score += 3
-            details.append(f"RSI 과매도 반등 ({rsi:.1f}) (+3)")
-        elif 40 < rsi < 50:  # 적정 매수 구간
-            score += 2
-            details.append(f"RSI 적정 ({rsi:.1f}) (+2)")
-        elif 50 < rsi < 60:  # 중립
-            score += 1
-            details.append(f"RSI 중립 ({rsi:.1f}) (+1)")
-        # 극단적 RSI는 점수 없음
-        
-        # 3. MACD 조건 (최대 2점)
-        macd = indicators.get('macd', 0)
-        macd_signal = indicators.get('macd_signal', 0)
-        macd_diff = macd - macd_signal
-        
-        if macd_diff > 0 and macd > 0:
-            score += 2
-            details.append("MACD 강세 (+2)")
-        elif macd_diff > 0:
-            score += 1.5
-            details.append("MACD 양전환 (+1.5)")
-        elif abs(macd_diff) < price * 0.0001:
-            score += 0.5
-            details.append("MACD 크로스 임박 (+0.5)")
-        
-        # 4. 볼륨 조건 (최대 2점) - 기준 강화
-        volume_ratio = indicators.get('volume_ratio', 1.0)
-        if volume_ratio > 1.5:
-            score += 2
-            details.append(f"거래량 급증 ({volume_ratio:.1f}x) (+2)")
-        elif volume_ratio > 1.2:
-            score += 1
-            details.append(f"거래량 증가 ({volume_ratio:.1f}x) (+1)")
-        # 평균 이하 거래량은 점수 없음
-        
-        # 5. 변동성 조건 (최대 2점)
-        volatility = indicators.get('volatility', 0.02)
-        if 0.01 < volatility < 0.02:  # 적정 변동성
-            score += 2
-            details.append(f"안정적 변동성 ({volatility:.3f}) (+2)")
-        elif 0.02 <= volatility < 0.025:
-            score += 1
-            details.append(f"보통 변동성 ({volatility:.3f}) (+1)")
-        # 높은 변동성은 점수 없음
-        
-        logger.info(f"진입 점수: {score:.1f}/12 - {', '.join(details)}")
-        
-        return score, details
+def calculate_entry_score(self, indicators):
+    """진입 조건 점수 계산 (더 엄격한 버전)"""
+    score = 0
+    details = []
+    
+    # 1. 추세 조건 (최대 3점) - 기준 강화
+    sma_20 = indicators.get('sma_20', 0)
+    sma_50 = indicators.get('sma_50', 0)
+    price = indicators.get('price', 0)
+    
+    if sma_20 > sma_50 and price > sma_20:
+        score += 2.5
+        details.append("강한 상승 추세 (+2.5)")
+    elif sma_20 > sma_50:
+        score += 1.5
+        details.append("상승 추세 (+1.5)")
+    elif price > sma_20:
+        score += 0.5
+        details.append("단기 상승 (+0.5)")
+    
+    # 2. RSI 조건 (최대 3점) - 범위 조정
+    rsi = indicators.get('rsi', 50)
+    if 30 < rsi < 40:  # 과매도 영역
+        score += 3
+        details.append(f"RSI 과매도 반등 ({rsi:.1f}) (+3)")
+    elif 40 < rsi < 50:  # 적정 매수 구간
+        score += 2
+        details.append(f"RSI 적정 ({rsi:.1f}) (+2)")
+    elif 50 < rsi < 60:  # 중립
+        score += 1
+        details.append(f"RSI 중립 ({rsi:.1f}) (+1)")
+    # 극단적 RSI는 점수 없음
+    
+    # 3. MACD 조건 (최대 2점)
+    macd = indicators.get('macd', 0)
+    macd_signal = indicators.get('macd_signal', 0)
+    macd_diff = macd - macd_signal
+    
+    if macd_diff > 0 and macd > 0:
+        score += 2
+        details.append("MACD 강세 (+2)")
+    elif macd_diff > 0:
+        score += 1.5
+        details.append("MACD 양전환 (+1.5)")
+    elif abs(macd_diff) < price * 0.0001:
+        score += 0.5
+        details.append("MACD 크로스 임박 (+0.5)")
+    
+    # 4. 볼륨 조건 (최대 2점) - 기준 강화
+    volume_ratio = indicators.get('volume_ratio', 1.0)
+    if volume_ratio > 1.5:
+        score += 2
+        details.append(f"거래량 급증 ({volume_ratio:.1f}x) (+2)")
+    elif volume_ratio > 1.2:
+        score += 1
+        details.append(f"거래량 증가 ({volume_ratio:.1f}x) (+1)")
+    # 평균 이하 거래량은 점수 없음
+    
+    # 5. 변동성 조건 (최대 2점)
+    volatility = indicators.get('volatility', 0.02)
+    if 0.01 < volatility < 0.02:  # 적정 변동성
+        score += 2
+        details.append(f"안정적 변동성 ({volatility:.3f}) (+2)")
+    elif 0.02 <= volatility < 0.025:
+        score += 1
+        details.append(f"보통 변동성 ({volatility:.3f}) (+1)")
+    # 높은 변동성은 점수 없음
+    
+    logger.info(f"진입 점수: {score:.1f}/12 - {', '.join(details)}")
+    
+    return score, details
     
     # def should_enter_position(self, symbol, indicators):
     #     """포지션 진입 여부 결정 (강화된 조건)"""

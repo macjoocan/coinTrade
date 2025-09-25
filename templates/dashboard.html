@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trading Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .price-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: #333;
+            border-radius: 5px;
+        }
+        .price-up { color: #4caf50; }
+        .price-down { color: #f44336; }
+        .price-neutral { color: #ffeb3b; }
+        h2 { margin-top: 0; color: #64b5f6; }
+        .chart-container { height: 300px; }
+    </style>
+</head>
+<body>
+    <h1>🤖 업비트 트레이딩 대시보드</h1>
+    
+    <div class="dashboard">
+        <div class="card">
+            <h2>📈 실시간 가격</h2>
+            <div id="prices"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📊 차트</h2>
+            <canvas id="priceChart"></canvas>
+        </div>
+        
+        <div class="card">
+            <h2>🎯 기술적 지표</h2>
+            <div id="indicators"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📦 포지션</h2>
+            <div id="positions">
+                <p>활성 포지션 없음</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 차트 초기화
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: []
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: false }
+                }
+            }
+        });
+        
+        // 가격 업데이트
+        function updatePrices() {
+            fetch('/api/prices')
+                .then(response => response.json())
+                .then(data => {
+                    let html = '';
+                    for (const [symbol, info] of Object.entries(data)) {
+                        const changeClass = info.change > 0 ? 'price-up' : 
+                                          info.change < 0 ? 'price-down' : 'price-neutral';
+                        const arrow = info.change > 0 ? '▲' : info.change < 0 ? '▼' : '=';
+                        
+                        html += `
+                            <div class="price-card">
+                                <strong>${symbol}</strong>
+                                <span>${info.price.toLocaleString()} KRW</span>
+                                <span class="${changeClass}">${arrow} ${Math.abs(info.change).toFixed(2)}%</span>
+                            </div>
+                        `;
+                    }
+                    document.getElementById('prices').innerHTML = html;
+                });
+        }
+        
+        // 지표 업데이트
+        function updateIndicators() {
+            const symbols = ['ETH', 'SOL', 'XRP'];
+            let html = '';
+            
+            symbols.forEach(symbol => {
+                fetch(`/api/indicators/${symbol}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.error) {
+                            const rsiClass = data.rsi > 70 ? 'price-down' : 
+                                           data.rsi < 30 ? 'price-up' : 'price-neutral';
+                            
+                            html += `
+                                <div class="price-card">
+                                    <strong>${symbol}</strong>
+                                    <span class="${rsiClass}">RSI: ${data.rsi.toFixed(1)}</span>
+                                    <span>MA20: ${data.ma20.toLocaleString()}</span>
+                                </div>
+                            `;
+                            document.getElementById('indicators').innerHTML = html;
+                        }
+                    });
+            });
+        }
+        
+        // 주기적 업데이트
+        setInterval(updatePrices, 2000);
+        setInterval(updateIndicators, 5000);
+        
+        // 초기 로드
+        updatePrices();
+        updateIndicators();
+    </script>
+</body>
+</html>

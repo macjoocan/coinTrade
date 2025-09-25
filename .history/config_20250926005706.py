@@ -8,7 +8,7 @@ RISK_CONFIG = {
     'max_position_size': 0.1,        # 10%로 축소
     'stop_loss': 0.01,               # 1% 손절 (타이트)
     'daily_loss_limit': 0.02,        # 2% 일일 최대 손실
-    'max_positions': 5,              # 최대 2개 포지션
+    'max_positions': 2,              # 최대 2개 포지션
 }
 
 ADVANCED_CONFIG = {
@@ -20,4 +20,4 @@ ADVANCED_CONFIG = {
 }
 
 # 안정적인 코인만
-TRADING_PAIRS = ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC']
+TRADING_PAIRS = ['BTC', 'ETH', 'SOL', 'WLFI', 'USDT', 'TOKAMAK']  

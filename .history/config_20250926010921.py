@@ -20,4 +20,4 @@ ADVANCED_CONFIG = {
 }
 
 # 안정적인 코인만
-TRADING_PAIRS = ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC']
+TRADING_PAIRS = ['BTC', 'ETH', 'SOL', 'WLFI', 'USDT', 'TOKAMAK', 'IMX', 'TRX']  
