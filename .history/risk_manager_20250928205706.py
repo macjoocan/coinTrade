@@ -75,10 +75,6 @@ class RiskManager:
         # 기본 포지션 크기
         base_position_value = balance * min(self.max_position_size, kelly_fraction)
         
-        # 시장 상황별 조정 추가
-        multiplier = self.market_analyzer.get_position_size_multiplier()
-        base_position_value *= multiplier
-        
         # 변동성 조정
         if volatility:
             vol_adjustment = min(1.0, 0.02 / max(volatility, 0.001))

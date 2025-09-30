@@ -232,7 +232,8 @@ class ImprovedStrategy:
     def should_enter_position(self, symbol, indicators):
         """포지션 진입 여부 결정 (강화된 조건)"""
         
-    # improved_strategy.py에서 수정할 부분
+# improved_strategy.py에서 수정할 부분
+
     def should_enter_position(self, symbol, indicators):
         """포지션 진입 여부 결정"""
         

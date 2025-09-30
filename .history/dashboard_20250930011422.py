@@ -582,7 +582,7 @@ class TradingDashboard:
         try:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
-            self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
+            self.layout["positions"].update(self.get_daily_profit_panel())
             self.layout["top_movers"].update(self.get_top_movers_panel())
             self.layout["api_status"].update(self.get_api_status())
             self.layout["indicators"].update(self.get_indicators_panel())

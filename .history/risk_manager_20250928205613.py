@@ -17,7 +17,6 @@ class RiskManager:
         self.stop_loss = RISK_CONFIG['stop_loss']
         self.daily_loss_limit = RISK_CONFIG['daily_loss_limit']
         self.max_positions = RISK_CONFIG['max_positions']
-        self.market_analyzer = MarketAnalyzer()  # 추가
         
         # 일일 손익 추적
         self.daily_pnl = defaultdict(float)
@@ -74,10 +73,6 @@ class RiskManager:
         
         # 기본 포지션 크기
         base_position_value = balance * min(self.max_position_size, kelly_fraction)
-        
-        # 시장 상황별 조정 추가
-        multiplier = self.market_analyzer.get_position_size_multiplier()
-        base_position_value *= multiplier
         
         # 변동성 조정
         if volatility:

@@ -446,108 +446,6 @@ class TradingDashboard:
             console.print(f"[dim]24h 계산 오류: {e}[/dim]")
         
         return result
-
-    def calculate_detailed_24h_stats(self):
-        """상세한 24시간 통계 계산"""
-        wins = []
-        losses = []
-        total_pnl = 0
-        
-        try:
-            if os.path.exists('trading.log'):
-                with open('trading.log', 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                
-                now = datetime.now()
-                cutoff_time = now - timedelta(hours=24)
-                
-                for line in lines:
-                    try:
-                        if '2025-' in line and 'PnL:' in line:
-                            time_str = line.split(',')[0]
-                            trade_time = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
-                            
-                            if trade_time > cutoff_time:
-                                pnl_str = line.split('PnL:')[1].split('(')[0]
-                                pnl = float(pnl_str.replace(',', '').replace(' ', '').replace('+', ''))
-                                
-                                total_pnl += pnl
-                                if pnl > 0:
-                                    wins.append(pnl)
-                                else:
-                                    losses.append(abs(pnl))
-                    except:
-                        continue
-                
-                # 통계 계산
-                trade_count = len(wins) + len(losses)
-                win_rate = (len(wins) / trade_count * 100) if trade_count > 0 else 0
-                
-                return {
-                    'total_return': (total_pnl / 1000000) * 100,  # 100만원 기준
-                    'realized_pnl': total_pnl,
-                    'trade_count': trade_count,
-                    'win_rate': win_rate,
-                    'avg_win': sum(wins) / len(wins) if wins else 0,
-                    'avg_loss': sum(losses) / len(losses) if losses else 0,
-                    'max_win': max(wins) if wins else 0,
-                    'max_loss': max(losses) if losses else 0
-                }
-                
-        except Exception as e:
-            console.print(f"[dim]통계 계산 오류: {e}[/dim]")
-            
-        return {
-            'total_return': 0.0,
-            'realized_pnl': 0,
-            'trade_count': 0,
-            'win_rate': 0.0,
-            'avg_win': 0,
-            'avg_loss': 0,
-            'max_win': 0,
-            'max_loss': 0
-        }
-
-    def get_enhanced_daily_profit_panel(self):
-        """향상된 24시간 수익률 패널"""
-        try:
-            profit_data = self.calculate_detailed_24h_stats()
-            
-            # 테이블 생성
-            table = Table(show_header=False, box=None, padding=(0,1))
-            table.add_column("지표", style="cyan", width=10)
-            table.add_column("값", justify="right", style="white")
-            
-            # 수익률 색상
-            return_color = "green" if profit_data['total_return'] > 0 else "red"
-            pnl_color = "green" if profit_data['realized_pnl'] > 0 else "red"
-            
-            # 데이터 행 추가
-            table.add_row("수익률", f"[{return_color}]{profit_data['total_return']:+.2f}%[/{return_color}]")
-            table.add_row("실현손익", f"[{pnl_color}]{profit_data['realized_pnl']:+,.0f}[/{pnl_color}]")
-            table.add_row("거래횟수", f"{profit_data['trade_count']}회")
-            
-            if profit_data['trade_count'] > 0:
-                win_color = "green" if profit_data['win_rate'] >= 50 else "red"
-                table.add_row("승률", f"[{win_color}]{profit_data['win_rate']:.1f}%[/{win_color}]")
-                
-                if profit_data['avg_win'] > 0:
-                    table.add_row("평균수익", f"[green]+{profit_data['avg_win']:,.0f}[/green]")
-                if profit_data['avg_loss'] > 0:
-                    table.add_row("평균손실", f"[red]-{profit_data['avg_loss']:,.0f}[/red]")
-            
-            return Panel(
-                table,
-                title="📊 24H Performance",
-                border_style="cyan"
-            )
-            
-        except Exception as e:
-            return Panel(
-                f"Loading...\n{str(e)[:30]}",
-                title="📊 24H Performance",
-                border_style="dim"
-            )
     
     def get_indicators_panel(self):
         """간단한 지표"""
@@ -582,7 +480,7 @@ class TradingDashboard:
         try:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
-            self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
+            self.layout["positions"].update(self.get_position_status())
             self.layout["top_movers"].update(self.get_top_movers_panel())
             self.layout["api_status"].update(self.get_api_status())
             self.layout["indicators"].update(self.get_indicators_panel())

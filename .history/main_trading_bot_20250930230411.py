@@ -8,15 +8,9 @@ import pandas as pd
 import numpy as np
 from improved_strategy import ImprovedStrategy
 from risk_manager import RiskManager
-from position_recovery import PositionRecovery
+from config import TRADING_PAIRS
 import sys
 import io
-from config import (
-    TRADING_PAIRS,
-    STRATEGY_CONFIG, 
-    RISK_CONFIG,
-    ADVANCED_CONFIG
-)
 
 # 한글/이모지 인코딩 문제 해결
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -54,7 +48,7 @@ class TradingBot:
         self.risk_manager = RiskManager(self.balance)
         
         # ⭐ 포지션 복구 시스템 추가
-        self.position_recovery = PositionRecovery(self.upbit)
+        self.position_recovery = Position   Recovery(self.upbit)
         self.recover_existing_positions()
         
         logger.info(f"봇 초기화 완료. 초기 자본: {self.balance:,.0f} KRW")

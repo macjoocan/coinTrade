@@ -514,27 +514,22 @@ class TradingDashboard:
             profit_data = self.calculate_detailed_24h_stats()
             
             # 테이블 생성
-            table = Table(show_header=False, box=None, padding=(0,1))
-            table.add_column("지표", style="cyan", width=10)
-            table.add_column("값", justify="right", style="white")
+            table = Table(show_header=True, header_style="bold cyan", box=None)
+            table.add_column("지표", style="dim", width=12)
+            table.add_column("값", justify="right")
             
             # 수익률 색상
             return_color = "green" if profit_data['total_return'] > 0 else "red"
-            pnl_color = "green" if profit_data['realized_pnl'] > 0 else "red"
             
-            # 데이터 행 추가
-            table.add_row("수익률", f"[{return_color}]{profit_data['total_return']:+.2f}%[/{return_color}]")
-            table.add_row("실현손익", f"[{pnl_color}]{profit_data['realized_pnl']:+,.0f}[/{pnl_color}]")
-            table.add_row("거래횟수", f"{profit_data['trade_count']}회")
-            
-            if profit_data['trade_count'] > 0:
-                win_color = "green" if profit_data['win_rate'] >= 50 else "red"
-                table.add_row("승률", f"[{win_color}]{profit_data['win_rate']:.1f}%[/{win_color}]")
-                
-                if profit_data['avg_win'] > 0:
-                    table.add_row("평균수익", f"[green]+{profit_data['avg_win']:,.0f}[/green]")
-                if profit_data['avg_loss'] > 0:
-                    table.add_row("평균손실", f"[red]-{profit_data['avg_loss']:,.0f}[/red]")
+            # 데이터 추가
+            table.add_row("24h 수익률", f"[{return_color}]{profit_data['total_return']:+.2f}%[/{return_color}]")
+            table.add_row("실현 손익", f"{profit_data['realized_pnl']:+,.0f} KRW")
+            table.add_row("거래 횟수", f"{profit_data['trade_count']}회")
+            table.add_row("승률", f"{profit_data['win_rate']:.1f}%")
+            table.add_row("평균 수익", f"{profit_data['avg_win']:+,.0f} KRW")
+            table.add_row("평균 손실", f"{profit_data['avg_loss']:,.0f} KRW")
+            table.add_row("최대 수익", f"{profit_data['max_win']:+,.0f} KRW")
+            table.add_row("최대 손실", f"{profit_data['max_loss']:,.0f} KRW")
             
             return Panel(
                 table,
@@ -542,9 +537,9 @@ class TradingDashboard:
                 border_style="cyan"
             )
             
-        except Exception as e:
+        except:
             return Panel(
-                f"Loading...\n{str(e)[:30]}",
+                "Loading...",
                 title="📊 24H Performance",
                 border_style="dim"
             )
@@ -582,7 +577,7 @@ class TradingDashboard:
         try:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
-            self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
+            self.layout["positions"].update(self.get_daily_profit_panel())
             self.layout["top_movers"].update(self.get_top_movers_panel())
             self.layout["api_status"].update(self.get_api_status())
             self.layout["indicators"].update(self.get_indicators_panel())

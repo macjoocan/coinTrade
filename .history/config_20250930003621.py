@@ -8,7 +8,7 @@ RISK_CONFIG = {
     'max_position_size': 0.2,        # 10%로 축소
     'stop_loss': 0.015,               # 1% 손절 (타이트)
     'daily_loss_limit': 0.02,        # 2% 일일 최대 손실
-    'max_positions': 3,              # 최대 2개 포지션
+    'max_positions': 2,              # 최대 2개 포지션
 }
 
 ADVANCED_CONFIG = {

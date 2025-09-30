@@ -8,15 +8,9 @@ import pandas as pd
 import numpy as np
 from improved_strategy import ImprovedStrategy
 from risk_manager import RiskManager
-from position_recovery import PositionRecovery
+from config import TRADING_PAIRS
 import sys
 import io
-from config import (
-    TRADING_PAIRS,
-    STRATEGY_CONFIG, 
-    RISK_CONFIG,
-    ADVANCED_CONFIG
-)
 
 # 한글/이모지 인코딩 문제 해결
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -53,47 +47,8 @@ class TradingBot:
         self.strategy = ImprovedStrategy()
         self.risk_manager = RiskManager(self.balance)
         
-        # ⭐ 포지션 복구 시스템 추가
-        self.position_recovery = PositionRecovery(self.upbit)
-        self.recover_existing_positions()
-        
         logger.info(f"봇 초기화 완료. 초기 자본: {self.balance:,.0f} KRW")
-
-
-    def recover_existing_positions(self):
-        """기존 포지션 복구"""
-        logger.info("="*50)
-        logger.info("기존 포지션 확인 중...")
         
-        # 1. 저장된 포지션 로드
-        saved_positions = self.position_recovery.load_positions()
-        
-        # 2. 거래소와 동기화
-        recovered = self.position_recovery.sync_with_exchange(saved_positions)
-        
-        if recovered:
-            # 3. 복구된 포지션을 리스크 매니저에 등록
-            for symbol, pos in recovered.items():
-                self.risk_manager.positions[symbol] = {
-                    'entry_price': pos['entry_price'],
-                    'quantity': pos['quantity'],
-                    'value': pos['entry_price'] * pos['quantity'],
-                    'entry_time': datetime.fromisoformat(pos['entry_time']) if isinstance(pos['entry_time'], str) else pos['entry_time'],
-                    'highest_price': pos['entry_price']
-                }
-                
-                # 전략에도 등록
-                self.strategy.position_entry_time[symbol] = time.time()
-                
-                logger.info(f"✅ 포지션 복구: {symbol} @ {pos['entry_price']:,.0f}")
-        
-        logger.info(f"복구 완료: {len(recovered)}개 포지션")
-        logger.info("="*50)
-    
-    def save_current_positions(self):
-        """현재 포지션 저장 (주기적으로 호출)"""
-        self.position_recovery.save_positions(self.risk_manager.positions)
-                
     def get_balance(self):
         """KRW 잔고 조회"""
         try:
@@ -320,28 +275,28 @@ class TradingBot:
                 logger.error(f"{symbol} 분석 실패: {e}")
                 continue
     
-    def print_status(self):  # ← 이 부분이 TradingBot 클래스 안에 있어야 함
-        """현재 상태 출력"""
-        print("\n" + "="*60)
-        print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print("="*60)
-        
-        # 시장 상황 표시
-        from market_condition_check import MarketAnalyzer
-        analyzer = MarketAnalyzer()
-        market = analyzer.analyze_market(TRADING_PAIRS)
-        
-        market_emoji = {
-            'bullish': '🐂',
-            'bearish': '🐻', 
-            'neutral': '➡️'
-        }
-        
-        print(f"📈 시장 상황: {market_emoji.get(market, '')} {market.upper()}")
-        
-        # 계좌 정보
-        self.balance = self.get_balance()
-        print(f"💰 KRW 잔고: {self.balance:,.0f} 원")
+        def print_status(self):
+            """현재 상태 출력"""
+            print("\n" + "="*60)
+            print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print("="*60)
+            
+            # ⭐ 시장 상황 표시
+            from market_condition_check import MarketAnalyzer
+            analyzer = MarketAnalyzer()
+            market = analyzer.analyze_market(TRADING_PAIRS)
+
+            market_emoji = {
+                'bullish': '🐂',
+                'bearish': '🐻', 
+                'neutral': '➡️'
+            }
+
+            print(f"📈 시장 상황: {market_emoji.get(market, '')} {market.upper()}")
+
+            # 계좌 정보
+            self.balance = self.get_balance()
+            print(f"💰 KRW 잔고: {self.balance:,.0f} 원")
         
         # 리스크 상태
         risk_status = self.risk_manager.get_risk_status()
@@ -373,7 +328,7 @@ class TradingBot:
         
         print("="*60)
     
-    def run(self):  # ← run 메서드도 TradingBot 클래스 안에 있어야 함
+    def run(self):
         """메인 실행 루프"""
         logger.info("="*60)
         logger.info("트레이딩 봇 시작")
@@ -383,8 +338,6 @@ class TradingBot:
         
         last_status_time = time.time()
         status_interval = 300  # 5분마다 상태 출력
-        last_save_time = time.time()
-        save_interval = 60  # 1분마다 포지션 저장
         
         while True:
             try:
@@ -403,13 +356,8 @@ class TradingBot:
                 
                 # 주기적 상태 출력
                 if time.time() - last_status_time > status_interval:
-                    self.print_status()  # self.print_status() 호출
+                    self.print_status()
                     last_status_time = time.time()
-                
-                # ⭐ 주기적으로 포지션 저장
-                if time.time() - last_save_time > save_interval:
-                    self.save_current_positions()
-                    last_save_time = time.time()
                 
                 # 대기
                 time.sleep(60)  # 1분 대기
@@ -427,15 +375,9 @@ class TradingBot:
             except Exception as e:
                 logger.error(f"예상치 못한 오류: {e}")
                 time.sleep(60)
-            
-            except KeyboardInterrupt:
-                # ⭐ 종료 시 포지션 저장
-                logger.info("봇 종료 중... 포지션 저장")
-                self.save_current_positions()
-                break
         
         # 종료 시 최종 상태 출력
-        self.print_status()  # self.print_status() 호출
+        self.print_status()
         logger.info("트레이딩 봇 종료")
 
 def test_run(bot):
@@ -489,40 +431,6 @@ if __name__ == "__main__":
     access_key = os.getenv('UPBIT_ACCESS_KEY')
     secret_key = os.getenv('UPBIT_SECRET_KEY')
     
-    # 봇 초기화
-    bot = TradingBot(access_key, secret_key)
-    
-    # ⭐ 기존 포지션 처리 옵션
-    if bot.risk_manager.positions:
-        print("\n" + "="*50)
-        print("📦 기존 포지션 발견:")
-        for symbol, pos in bot.risk_manager.positions.items():
-            current_price = pyupbit.get_current_price(f"KRW-{symbol}")
-            if current_price:
-                pnl = (current_price - pos['entry_price']) / pos['entry_price'] * 100
-                print(f"  {symbol}: {pnl:+.2f}% (진입가: {pos['entry_price']:,.0f})")
-        
-        print("\n어떻게 처리하시겠습니까?")
-        print("1. 기존 포지션 유지하고 계속")
-        print("2. 모든 포지션 청산 후 시작")
-        print("3. 선택적으로 청산")
-        
-        choice = input("\n선택 (1/2/3): ").strip()
-        
-        if choice == '2':
-            print("모든 포지션 청산 중...")
-            for symbol in list(bot.risk_manager.positions.keys()):
-                bot.execute_trade(symbol, 'sell')
-            bot.risk_manager.positions.clear()
-            
-        elif choice == '3':
-            for symbol in list(bot.risk_manager.positions.keys()):
-                sell = input(f"{symbol} 청산? (y/n): ").strip().lower()
-                if sell == 'y':
-                    bot.execute_trade(symbol, 'sell')
-        
-        print("="*50)
-       
     if not access_key or not secret_key:
         print("❌ API 키를 설정해주세요.")
         print("\n설정 방법:")

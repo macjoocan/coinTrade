@@ -8,15 +8,9 @@ import pandas as pd
 import numpy as np
 from improved_strategy import ImprovedStrategy
 from risk_manager import RiskManager
-from position_recovery import PositionRecovery
+from config import TRADING_PAIRS
 import sys
 import io
-from config import (
-    TRADING_PAIRS,
-    STRATEGY_CONFIG, 
-    RISK_CONFIG,
-    ADVANCED_CONFIG
-)
 
 # 한글/이모지 인코딩 문제 해결
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -54,7 +48,7 @@ class TradingBot:
         self.risk_manager = RiskManager(self.balance)
         
         # ⭐ 포지션 복구 시스템 추가
-        self.position_recovery = PositionRecovery(self.upbit)
+        self.position_recovery = Position   Recovery(self.upbit)
         self.recover_existing_positions()
         
         logger.info(f"봇 초기화 완료. 초기 자본: {self.balance:,.0f} KRW")
@@ -489,40 +483,6 @@ if __name__ == "__main__":
     access_key = os.getenv('UPBIT_ACCESS_KEY')
     secret_key = os.getenv('UPBIT_SECRET_KEY')
     
-    # 봇 초기화
-    bot = TradingBot(access_key, secret_key)
-    
-    # ⭐ 기존 포지션 처리 옵션
-    if bot.risk_manager.positions:
-        print("\n" + "="*50)
-        print("📦 기존 포지션 발견:")
-        for symbol, pos in bot.risk_manager.positions.items():
-            current_price = pyupbit.get_current_price(f"KRW-{symbol}")
-            if current_price:
-                pnl = (current_price - pos['entry_price']) / pos['entry_price'] * 100
-                print(f"  {symbol}: {pnl:+.2f}% (진입가: {pos['entry_price']:,.0f})")
-        
-        print("\n어떻게 처리하시겠습니까?")
-        print("1. 기존 포지션 유지하고 계속")
-        print("2. 모든 포지션 청산 후 시작")
-        print("3. 선택적으로 청산")
-        
-        choice = input("\n선택 (1/2/3): ").strip()
-        
-        if choice == '2':
-            print("모든 포지션 청산 중...")
-            for symbol in list(bot.risk_manager.positions.keys()):
-                bot.execute_trade(symbol, 'sell')
-            bot.risk_manager.positions.clear()
-            
-        elif choice == '3':
-            for symbol in list(bot.risk_manager.positions.keys()):
-                sell = input(f"{symbol} 청산? (y/n): ").strip().lower()
-                if sell == 'y':
-                    bot.execute_trade(symbol, 'sell')
-        
-        print("="*50)
-       
     if not access_key or not secret_key:
         print("❌ API 키를 설정해주세요.")
         print("\n설정 방법:")

@@ -11,12 +11,6 @@ from risk_manager import RiskManager
 from position_recovery import PositionRecovery
 import sys
 import io
-from config import (
-    TRADING_PAIRS,
-    STRATEGY_CONFIG, 
-    RISK_CONFIG,
-    ADVANCED_CONFIG
-)
 
 # 한글/이모지 인코딩 문제 해결
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

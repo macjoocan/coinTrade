@@ -1,6 +1,5 @@
 # improved_strategy.py
-import time
-from collections import defaultdict
+
 import pyupbit
 import pandas as pd
 import numpy as np
@@ -25,7 +24,6 @@ class ImprovedStrategy:
         self.max_trades_per_day = STRATEGY_CONFIG['max_trades_per_day']
         self.min_hold_time = STRATEGY_CONFIG['min_hold_time']
         
-        # 
         self.positions = {}
         self.last_trade_time = {}
         self.trade_count_today = 0
@@ -232,43 +230,61 @@ class ImprovedStrategy:
     def should_enter_position(self, symbol, indicators):
         """포지션 진입 여부 결정 (강화된 조건)"""
         
-    # improved_strategy.py에서 수정할 부분
-    def should_enter_position(self, symbol, indicators):
-        """포지션 진입 여부 결정"""
-        
         # 1. 거래 빈도 체크
         if not self.can_trade_today():
             return False, "일일 거래 한도 초과"
         
-        # 2. 쿨다운 체크
+        # 2. 쿨다운 체크 (무조건 적용)
         if self.is_in_cooldown(symbol):
+            # strong_signal 체크 제거 - 쿨다운은 무조건 지켜야 함
             return False, "쿨다운 중 (30분 대기)"
         
-        # 3. 연속 손실 체크
-        if hasattr(self, 'consecutive_losses') and self.consecutive_losses >= 2:
-            return False, f"연속 손실 {self.consecutive_losses}회 - 거래 일시 중단"
+        # 3. 연속 손실 체크 (추가)
+        if hasattr(self, 'consecutive_losses'):
+            if self.consecutive_losses >= 2:
+                return False, f"연속 손실 {self.consecutive_losses}회 - 거래 일시 중단"
         
-        # 4. 시장 상황 분석
-        market_condition = self.market_analyzer.analyze_market(TRADING_PAIRS)
-        
-        # 5. 진입 점수 계산
+        # 4. 진입 점수 계산
         score, details = self.calculate_entry_score(indicators)
         
-        # 6. 시장 상황에 따른 기준 조정
-        base_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
+        # 5. 시장 상황 체크 (추가)
+        market_condition = self._check_market_condition(indicators)
         
-        if market_condition == 'bearish':
-            adjusted_threshold = base_threshold + 1.0  # 베어장: 기준 상향
-        elif market_condition == 'bullish':
-            adjusted_threshold = base_threshold - 0.5  # 불장: 기준 완화
-        else:
-            adjusted_threshold = base_threshold
+        # 6. 다단계 진입 전략 (더 엄격하게)
+        from config import ADVANCED_CONFIG
         
-        # 7. 최종 판단
-        if score >= adjusted_threshold:
-            return True, f"진입 조건 충족 (점수: {score:.1f}/{adjusted_threshold:.1f}, 시장: {market_condition})"
+        # 매우 강한 신호 (점수 9 이상 + 시장 상황 양호)
+        if score >= 9 and market_condition == "bullish":
+            return True, f"매우 강한 매수 신호! (점수: {score:.1f})"
         
-        return False, f"진입 조건 미충족 (점수: {score:.1f}/{adjusted_threshold:.1f})"
+        # 강한 신호 (점수 7 이상 + RSI 조건)
+        elif score >= 7:
+            rsi = indicators.get('rsi', 50)
+            if 30 < rsi < 60:  # RSI가 극단적이지 않을 때
+                return True, f"강한 진입 신호 (점수: {score:.1f}, RSI: {rsi:.1f})"
+            else:
+                return False, f"점수는 충족하나 RSI 부적합 ({rsi:.1f})"
+        
+        # 일반 신호 (점수 6 이상 + 추가 조건)
+        elif score >= ADVANCED_CONFIG.get('entry_score_threshold', 6):
+            rsi = indicators.get('rsi', 50)
+            volume_ratio = indicators.get('volume_ratio', 1.0)
+            
+            # RSI와 거래량 모두 확인
+            if 35 < rsi < 55 and volume_ratio > 1.2:
+                return True, f"진입 조건 충족 (점수: {score:.1f}, RSI: {rsi:.1f}, Vol: {volume_ratio:.1f}x)"
+            else:
+                return False, f"보조 지표 미충족 (RSI: {rsi:.1f}, Vol: {volume_ratio:.1f}x)"
+        
+        # 소액 포지션 진입 비활성화 (너무 위험)
+        # 아래 코드는 주석 처리
+        """
+        elif score >= ADVANCED_CONFIG.get('min_score_for_small_position', 4):
+            if indicators.get('rsi', 50) < 40:
+                return True, f"소액 진입 가능 (점수: {score:.1f})"
+        """
+        
+        return False, f"진입 조건 미충족 (점수: {score:.1f}/{ADVANCED_CONFIG.get('entry_score_threshold', 6)})"
     
     def record_trade(self, symbol, trade_type):
         """거래 기록"""
