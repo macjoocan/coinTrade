@@ -466,45 +466,45 @@ class TradingBot:
         
         logger.info("강제 청산 완료")
 
-def test_run(bot):
-    """테스트 모드 실행"""
-    print("\n테스트 모드 - 실제 거래 없이 신호만 확인")
-    print("종료하려면 Ctrl+C를 누르세요.\n")
-    
-    while True:
-        try:
-            print(f"\n⏰ {datetime.now().strftime('%H:%M:%S')}")
-            
-            for symbol in TRADING_PAIRS:
-                ticker = f"KRW-{symbol}"
-                indicators = bot.calculate_indicators(ticker)
+    def test_run(bot):
+        """테스트 모드 실행"""
+        print("\n테스트 모드 - 실제 거래 없이 신호만 확인")
+        print("종료하려면 Ctrl+C를 누르세요.\n")
+        
+        while True:
+            try:
+                print(f"\n⏰ {datetime.now().strftime('%H:%M:%S')}")
                 
-                if indicators:
-                    print(f"\n📊 {symbol} 분석:")
-                    print(f"   가격: {indicators['price']:,.0f}")
-                    print(f"   RSI: {indicators['rsi']:.1f}")
-                    print(f"   추세: {indicators['trend']}")
-                    print(f"   변동성: {indicators['volatility']:.3f}")
-                    print(f"   거래량 비율: {indicators['volume_ratio']:.1f}")
+                for symbol in TRADING_PAIRS:
+                    ticker = f"KRW-{symbol}"
+                    indicators = bot.calculate_indicators(ticker)
                     
-                    # 진입 신호 체크
-                    can_enter, reason = bot.strategy.should_enter_position(symbol, indicators)
-                    
-                    if can_enter:
-                        print(f"   🟢 매수 신호! - {reason}")
-                        print(f"   기대수익: {indicators['expected_return']:.1%}")
-                    else:
-                        print(f"   ⚪ {reason}")
-            
-            print("\n" + "-"*60)
-            time.sleep(60)  # 1분 대기
-            
-        except KeyboardInterrupt:
-            print("\n테스트 종료")
-            break
-        except Exception as e:
-            print(f"오류: {e}")
-            time.sleep(60)
+                    if indicators:
+                        print(f"\n📊 {symbol} 분석:")
+                        print(f"   가격: {indicators['price']:,.0f}")
+                        print(f"   RSI: {indicators['rsi']:.1f}")
+                        print(f"   추세: {indicators['trend']}")
+                        print(f"   변동성: {indicators['volatility']:.3f}")
+                        print(f"   거래량 비율: {indicators['volume_ratio']:.1f}")
+                        
+                        # 진입 신호 체크
+                        can_enter, reason = bot.strategy.should_enter_position(symbol, indicators)
+                        
+                        if can_enter:
+                            print(f"   🟢 매수 신호! - {reason}")
+                            print(f"   기대수익: {indicators['expected_return']:.1%}")
+                        else:
+                            print(f"   ⚪ {reason}")
+                
+                print("\n" + "-"*60)
+                time.sleep(60)  # 1분 대기
+                
+            except KeyboardInterrupt:
+                print("\n테스트 종료")
+                break
+            except Exception as e:
+                print(f"오류: {e}")
+                time.sleep(60)
 
 # 실행 스크립트
 if __name__ == "__main__":

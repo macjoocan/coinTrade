@@ -433,39 +433,6 @@ class TradingBot:
         self.print_status()
         logger.info("트레이딩 봇 종료")
 
-    def force_sell_all_positions(self):
-        """강제로 모든 포지션 청산 (보유시간 무시)"""
-        logger.info("강제 청산 모드 시작")
-        
-        for symbol in list(self.risk_manager.positions.keys()):
-            ticker = f"KRW-{symbol}"
-            
-            try:
-                # 보유 수량 조회
-                quantity = self.get_position_quantity(symbol)
-                
-                if quantity > 0:
-                    # 직접 매도 주문 실행 (strategy 체크 우회)
-                    order = self.upbit.sell_market_order(ticker, quantity)
-                    
-                    if order:
-                        logger.info(f"✅ 강제 청산 완료: {symbol}")
-                        
-                        # 포지션 정보 제거
-                        if symbol in self.risk_manager.positions:
-                            del self.risk_manager.positions[symbol]
-                        if symbol in self.strategy.position_entry_time:
-                            del self.strategy.position_entry_time[symbol]
-                    else:
-                        logger.error(f"❌ 강제 청산 실패: {symbol}")
-                else:
-                    logger.info(f"{symbol}: 보유 수량 없음")
-                    
-            except Exception as e:
-                logger.error(f"{symbol} 청산 오류: {e}")
-        
-        logger.info("강제 청산 완료")
-
 def test_run(bot):
     """테스트 모드 실행"""
     print("\n테스트 모드 - 실제 거래 없이 신호만 확인")
