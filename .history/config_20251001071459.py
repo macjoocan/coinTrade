@@ -18,17 +18,8 @@ ADVANCED_CONFIG = {
     'use_consecutive_loss_check': True,
     'max_consecutive_losses': 3,     # 2 → 3 (여유 추가)
 }
-
-DYNAMIC_COIN_CONFIG = {
-    'enabled': True,  # 동적 선택 활성화
-    'max_dynamic_coins': 2,  # 최대 2개 추가
-    'refresh_interval': 3600 * 6,  # 6시간마다 갱신
-    'min_score': 6,  # 최소 모멘텀 점수
-    'max_allocation': 0.15,  # 동적 코인당 최대 15%
-}
-
 # 기본 안정 코인
 STABLE_PAIRS = ['BTC', 'ETH', 'SOL']
 
 # 안정적인 메이저 코인만
-TRADING_PAIRS = STABLE_PAIRS
+TRADING_PAIRS = STABLE_PAIRS\

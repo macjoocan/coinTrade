@@ -164,11 +164,10 @@ class TradingDashboard:
         self.layout = Layout()
         self.cache = MarketDataCache()
         self.api_calls = deque(maxlen=100)
-        self.dynamic_coins = []
         self.setup_layout()
-
+        
     def setup_layout(self):
-        """레이아웃 구성 - 수정"""
+        """레이아웃 구성"""
         self.layout.split(
             Layout(name="header", size=3),
             Layout(name="body"),
@@ -183,19 +182,19 @@ class TradingDashboard:
         
         self.layout["left"].split(
             Layout(name="prices"),
-            Layout(name="positions")  # 24H Performance
+            Layout(name="positions")
         )
         
         self.layout["center"].split(
             Layout(name="top_movers"),
-            Layout(name="dynamic_coins")  # ← 새로 추가
+            Layout(name="api_status")
         )
         
         self.layout["right"].split(
             Layout(name="indicators"),
             Layout(name="trades")
         )
-        
+    
     def track_api_call(self):
         """API 호출 추적"""
         self.api_calls.append(datetime.now())
@@ -310,48 +309,6 @@ class TradingDashboard:
         return Panel(
             "\n".join(text_lines),
             title="Market Movers (5min cache)",
-            border_style="yellow"
-        )
-
-    def get_dynamic_coins_panel(self):
-        """동적 코인 상태 패널"""
-        lines = []
-        
-        # momentum_scanner에서 코인 가져오기
-        try:
-            from momentum_scanner import MomentumScanner
-            scanner = MomentumScanner()
-            dynamic_coins = scanner.scan_top_performers(top_n=3)
-            
-            if dynamic_coins:
-                lines.append("[bold yellow]📈 모멘텀 코인[/bold yellow]")
-                lines.append("")
-                
-                for coin in dynamic_coins:
-                    ticker = f"KRW-{coin}"
-                    try:
-                        # 24시간 변동률 계산
-                        df = pyupbit.get_ohlcv(ticker, "day", 2)
-                        if df is not None and len(df) >= 2:
-                            change = ((df['close'].iloc[-1] - df['close'].iloc[-2]) / 
-                                     df['close'].iloc[-2] * 100)
-                            
-                            color = "green" if change > 0 else "red"
-                            lines.append(f"{coin}: [{color}]{change:+.1f}%[/{color}]")
-                    except:
-                        lines.append(f"{coin}: [dim]데이터 없음[/dim]")
-            else:
-                lines.append("[dim]모멘텀 코인 없음[/dim]")
-                
-        except Exception as e:
-            lines.append(f"[dim]로딩 실패: {str(e)[:20]}[/dim]")
-        
-        if not lines:
-            lines.append("[dim]대기 중...[/dim]")
-            
-        return Panel(
-            "\n".join(lines),
-            title="Dynamic Coins",
             border_style="yellow"
         )
     
@@ -626,8 +583,8 @@ class TradingDashboard:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
             self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
-            self.layout["top_movers"].update(self.get_top_movers_panel())          
-            self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())            
+            self.layout["top_movers"].update(self.get_top_movers_panel())
+            self.layout["api_status"].update(self.get_api_status())
             self.layout["indicators"].update(self.get_indicators_panel())
             self.layout["trades"].update(self.get_recent_trades())
             self.layout["footer"].update(self.get_footer())

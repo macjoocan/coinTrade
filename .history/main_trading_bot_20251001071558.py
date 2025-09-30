@@ -55,11 +55,6 @@ class TradingBot:
         self.strategy = ImprovedStrategy()
         self.risk_manager = RiskManager(self.balance)
         
-        # 동적 모멘텀 스캐너 초기화
-        self.momentum_scanner = MomentumScanner()
-        self.dynamic_coins = []
-        self.last_scan_time = 0
-        
         # ⭐ 포지션 복구 시스템 추가
         self.position_recovery = PositionRecovery(self.upbit)
         self.recover_existing_positions()
@@ -184,44 +179,6 @@ class TradingBot:
         except Exception as e:
             logger.error(f"지표 계산 실패 {ticker}: {e}")
             return None
-
-    def update_trading_pairs(self):
-        """거래 대상 동적 업데이트"""
-        
-        if not DYNAMIC_COIN_CONFIG['enabled']:
-            return
-        
-        now = time.time()
-        
-        # 갱신 시간 체크
-        if now - self.last_scan_time < DYNAMIC_COIN_CONFIG['refresh_interval']:
-            return
-        
-        logger.info("="*50)
-        logger.info("모멘텀 코인 스캔 시작...")
-        
-        # 새로운 모멘텀 코인 검색
-        momentum_coins = self.momentum_scanner.scan_top_performers(
-            top_n=DYNAMIC_COIN_CONFIG['max_dynamic_coins']
-        )
-        
-        # 기존 동적 코인 포지션 체크
-        for coin in self.dynamic_coins:
-            if coin not in momentum_coins and coin not in STABLE_PAIRS:
-                # 포지션 있으면 청산
-                if coin in self.risk_manager.positions:
-                    logger.info(f"모멘텀 상실: {coin} 청산")
-                    self.execute_trade(coin, 'sell')
-        
-        # 새로운 리스트 구성
-        self.dynamic_coins = momentum_coins
-        
-        # 글로벌 거래 리스트 업데이트
-        global TRADING_PAIRS
-        TRADING_PAIRS = STABLE_PAIRS + self.dynamic_coins
-        
-        logger.info(f"거래 대상 업데이트: {', '.join(TRADING_PAIRS)}")
-        self.last_scan_time = now
     
     def execute_trade(self, symbol, trade_type, current_price=None):
         """거래 실행 (개선된 로직)"""
@@ -438,9 +395,6 @@ class TradingBot:
                     logger.warning("일일 손실 한도 도달. 거래 중단.")
                     time.sleep(3600)  # 1시간 대기
                     continue
-                
-                # 동적 코인 업데이트 (6시간 마다)
-                self.update_trading_pairs()
                 
                 # 청산 조건 체크
                 self.check_exit_conditions()

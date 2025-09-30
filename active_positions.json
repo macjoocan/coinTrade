@@ -1,4 +1,15 @@
 {
-  "timestamp": "2025-10-01T00:37:13.403746",
-  "positions": {}
+  "timestamp": "2025-10-01T07:50:37.913197",
+  "positions": {
+    "BTC": {
+      "entry_price": 162455000.0,
+      "quantity": 0.000157,
+      "entry_time": "2025-10-01T01:22:02.827269"
+    },
+    "ETH": {
+      "entry_price": 5991000.0,
+      "quantity": 0.00408032,
+      "entry_time": "2025-10-01T06:00:18.448731"
+    }
+  }
 }

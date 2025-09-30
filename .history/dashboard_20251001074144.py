@@ -626,8 +626,11 @@ class TradingDashboard:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
             self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
-            self.layout["top_movers"].update(self.get_top_movers_panel())          
-            self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())            
+            self.layout["top_movers"].update(self.get_top_movers_panel())
+            
+            # 동적 코인 패널 추가
+            self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())
+            
             self.layout["indicators"].update(self.get_indicators_panel())
             self.layout["trades"].update(self.get_recent_trades())
             self.layout["footer"].update(self.get_footer())

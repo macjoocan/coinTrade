@@ -166,9 +166,8 @@ class TradingDashboard:
         self.api_calls = deque(maxlen=100)
         self.dynamic_coins = []
         self.setup_layout()
-
+        
     def setup_layout(self):
-        """레이아웃 구성 - 수정"""
         self.layout.split(
             Layout(name="header", size=3),
             Layout(name="body"),
@@ -176,24 +175,24 @@ class TradingDashboard:
         )
         
         self.layout["body"].split_row(
-            Layout(name="left"),
-            Layout(name="center"),
-            Layout(name="right")
+            Layout(name="left", ratio=1),
+            Layout(name="center", ratio=1),
+            Layout(name="right", ratio=1)
         )
         
         self.layout["left"].split(
-            Layout(name="prices"),
-            Layout(name="positions")  # 24H Performance
+            Layout(name="prices", size=15),
+            Layout(name="positions", size=10)
         )
         
         self.layout["center"].split(
-            Layout(name="top_movers"),
-            Layout(name="dynamic_coins")  # ← 새로 추가
+            Layout(name="dynamic_coins", size=12),  # 동적 코인
+            Layout(name="top_movers", size=13)      # 상승/하락
         )
         
         self.layout["right"].split(
-            Layout(name="indicators"),
-            Layout(name="trades")
+            Layout(name="indicators", size=12),
+            Layout(name="trades", size=13)
         )
         
     def track_api_call(self):
@@ -626,8 +625,9 @@ class TradingDashboard:
             self.layout["header"].update(self.get_header())
             self.layout["prices"].update(self.get_price_table())
             self.layout["positions"].update(self.get_enhanced_daily_profit_panel())
-            self.layout["top_movers"].update(self.get_top_movers_panel())          
-            self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())            
+            self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())
+            self.layout["top_movers"].update(self.get_top_movers_panel())
+            self.layout["api_status"].update(self.get_api_status())
             self.layout["indicators"].update(self.get_indicators_panel())
             self.layout["trades"].update(self.get_recent_trades())
             self.layout["footer"].update(self.get_footer())

@@ -439,9 +439,6 @@ class TradingBot:
                     time.sleep(3600)  # 1시간 대기
                     continue
                 
-                # 동적 코인 업데이트 (6시간 마다)
-                self.update_trading_pairs()
-                
                 # 청산 조건 체크
                 self.check_exit_conditions()
                 

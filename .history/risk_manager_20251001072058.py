@@ -3,7 +3,6 @@
 from datetime import datetime
 from collections import defaultdict
 from config import RISK_CONFIG
-from config import STABLE_PAIRS
 import logging
 import numpy as np
 from market_condition_check import MarketAnalyzer

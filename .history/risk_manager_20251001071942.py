@@ -3,7 +3,6 @@
 from datetime import datetime
 from collections import defaultdict
 from config import RISK_CONFIG
-from config import STABLE_PAIRS
 import logging
 import numpy as np
 from market_condition_check import MarketAnalyzer
@@ -69,18 +68,7 @@ class RiskManager:
             return "normal"    # 정상
     
     def calculate_position_size(self, balance, symbol, current_price, volatility=None, indicators=None):    
-
-        """포지션 크기 계산 - 동적/정적 코인 구분"""
-        
-        # 기본 계산
-        base_size = balance * RISK_CONFIG['max_position_size']
-        
-        # 동적 코인인지 체크
-        if symbol not in STABLE_PAIRS:
-            # 동적 코인은 포지션 축소
-            base_size *= 0.6  # 60%만 할당
-            logger.info(f"{symbol}: 동적 코인 - 포지션 60% 축소")
-
+        """포지션 크기 계산"""
         # Kelly Criterion으로 최적 포지션 크기 계산
         kelly_fraction = self._calculate_kelly_fraction()
         
