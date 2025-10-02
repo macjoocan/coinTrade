@@ -11,21 +11,6 @@ RISK_CONFIG = {
     'max_positions': 3,              
 }
 
-EXIT_PRIORITY = {
-    'stop_loss': {
-        'priority': 1,  # 최고 우선순위
-        'ignore_hold_time': True  # 보유시간 무시
-    },
-    'trailing_stop': {
-        'priority': 2,
-        'ignore_hold_time': False  # 수익 중이니 시간 체크
-    },
-    'take_profit': {
-        'priority': 3,
-        'ignore_hold_time': False
-    }
-}
-
 ADVANCED_CONFIG = {
     'entry_score_threshold': 5.5,    # 7 → 5.5 (완화)
     'min_score_for_small_position': 999,

@@ -1,14 +1,13 @@
 # risk_manager.py - 완전한 버전
 
 from datetime import datetime
-import pyupbit
 from collections import defaultdict
 from config import RISK_CONFIG
 from config import STABLE_PAIRS
-from config import ADVANCED_CONFIG
 import logging
 import numpy as np
 from market_condition_check import MarketAnalyzer
+from risk_manager import RiskManager
 
 logger = logging.getLogger(__name__)
 

@@ -1,14 +1,17 @@
-# risk_manager.py - 완전한 버전
+# risk_manager.py 개선 버전
 
+import pyupbit  # 추가 필요
 from datetime import datetime
-import pyupbit
 from collections import defaultdict
-from config import RISK_CONFIG
-from config import STABLE_PAIRS
-from config import ADVANCED_CONFIG
+from config import RISK_CONFIG, ADVANCED_CONFIG
 import logging
 import numpy as np
-from market_condition_check import MarketAnalyzer
+
+# STABLE_PAIRS 안전하게 import
+try:
+    from config import STABLE_PAIRS
+except ImportError:
+    STABLE_PAIRS = ['BTC', 'ETH', 'SOL']
 
 logger = logging.getLogger(__name__)
 
@@ -49,41 +52,6 @@ class RiskManager:
         self.last_calculated_win_rate = 0.5
         self.total_wins = 0
         self.total_losses = 0
-
-    def should_stop_trading(self):
-        """거래 중단 여부 판단"""
-        # 연속 손실 체크
-        if self.consecutive_losses >= 2:
-            logger.warning(f"연속 손실 {self.consecutive_losses}회 - 거래 중단 권고")
-            return True, "연속 손실로 인한 거래 중단"
-        
-        # 일일 손실 한도 체크
-        if self.check_daily_loss_limit():
-            return True, "일일 손실 한도 도달"
-        
-        # 자본 손실 체크
-        if self.current_balance < self.initial_balance * 0.95:
-            return True, "자본 5% 손실 - 보호 모드"
-        
-        return False, "정상"
-
-    def get_position_health(self, symbol, current_price):
-        """포지션 건전성 평가"""
-        if symbol not in self.positions:
-            return "no_position"
-        
-        position = self.positions[symbol]
-        entry_price = position['entry_price']
-        pnl_rate = (current_price - entry_price) / entry_price
-        
-        if pnl_rate < -0.008:  # -0.8% 이하
-            return "critical"  # 즉시 손절 필요
-        elif pnl_rate < -0.005:  # -0.5% 이하
-            return "warning"   # 주의 필요
-        elif pnl_rate > 0.01:  # +1% 이상
-            return "profit"    # 익절 고려
-        else:
-            return "normal"    # 정상
     
     def calculate_position_size(self, balance, symbol, current_price, volatility=None, indicators=None):
         """포지션 크기 계산"""
@@ -123,84 +91,6 @@ class RiskManager:
             return 0
         
         return final_position_value / current_price
-    
-    def _calculate_kelly_fraction(self):
-        """Kelly Criterion 계산"""
-        if self.win_rate <= 0 or self.avg_win_loss_ratio <= 0:
-            return 0.02  # 기본값 2%
-        
-        p = self.win_rate
-        q = 1 - p
-        b = self.avg_win_loss_ratio
-        
-        kelly = (p * b - q) / b
-        conservative_kelly = kelly * 0.25  # 보수적 접근
-        
-        return min(max(conservative_kelly, 0.01), 0.1)
-    
-    def check_stop_loss(self, symbol, current_price):
-        """손절 체크"""
-        if symbol not in self.positions:
-            return False
-        
-        position = self.positions[symbol]
-        entry_price = position['entry_price']
-        
-        # 시간에 따른 손절 조정
-        if 'entry_time' in position:
-            holding_time = (datetime.now() - position['entry_time']).total_seconds() / 3600
-            time_adjusted_stop_loss = self.stop_loss * (1 - min(holding_time / 24, 0.3))
-        else:
-            time_adjusted_stop_loss = self.stop_loss
-        
-        loss_rate = (current_price - entry_price) / entry_price
-        
-        if loss_rate <= -time_adjusted_stop_loss:
-            logger.warning(f"{symbol} 손절 신호: {loss_rate:.1%}")
-            return True
-        
-        return False
-    
-    def check_trailing_stop(self, symbol, current_price):
-        """추적 손절 체크"""
-        if symbol not in self.positions:
-            return False
-        
-        position = self.positions[symbol]
-        entry_price = position['entry_price']
-        highest_price = position.get('highest_price', entry_price)
-        
-        # 최고가 업데이트
-        if current_price > highest_price:
-            self.positions[symbol]['highest_price'] = current_price
-            highest_price = current_price
-        
-        # 수익 중일 때 추적 손절 적용
-        profit_rate = (highest_price - entry_price) / entry_price
-        if profit_rate > 0.02:  # 2% 이상 수익
-            trailing_stop = highest_price * (1 - 0.01)
-            if current_price <= trailing_stop:
-                logger.info(f"{symbol} 추적 손절 발동")
-                return True
-        
-        return False
-    
-    def check_daily_loss_limit(self):
-        """일일 손실 한도 체크 - 누락된 메서드 추가"""
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        if self.initial_balance <= 0:
-            return False
-        
-        daily_loss_rate = self.daily_pnl[today] / self.initial_balance
-        
-        # 일일 손실이 한도를 초과했는지 체크
-        is_over_limit = daily_loss_rate <= -self.daily_loss_limit
-        
-        if is_over_limit:
-            logger.warning(f"일일 손실 한도 도달: {daily_loss_rate:.1%}")
-        
-        return is_over_limit
     
     def update_position(self, symbol, entry_price, quantity, trade_type):
         """포지션 업데이트 - 개선된 버전"""
@@ -250,7 +140,7 @@ class RiskManager:
                        f"(승률: {self.win_rate:.1%})")
             
             del self.positions[symbol]
-
+    
     def _update_statistics(self):
         """통계 업데이트 - 실시간 반영"""
         total_trades = len(self.all_trades_history)
@@ -271,30 +161,6 @@ class RiskManager:
             logger.debug(f"통계 업데이트: 승률={self.win_rate:.1%}, "
                         f"손익비={self.avg_win_loss_ratio:.2f}, "
                         f"총거래={total_trades}")
-    
-    def can_open_new_position(self):
-        """새 포지션 오픈 가능 여부"""
-        # 일일 손실 한도 체크
-        if self.check_daily_loss_limit():
-            return False, "일일 손실 한도 도달"
-        
-        # 연속 손실 체크
-        if self.consecutive_losses >= self.max_consecutive_losses:
-            return False, f"연속 손실 {self.consecutive_losses}회 - 거래 중단"
-        
-        # 최대 포지션 개수 체크
-        if len(self.positions) >= self.max_positions:
-            return False, "최대 포지션 수 도달"
-        
-        # 자본 보호 체크
-        if self.current_balance < self.initial_balance * 0.7:
-            return False, "자본 30% 손실 - 보호 모드"
-        
-        return True, "거래 가능"
-    
-    def get_position_info(self, symbol):
-        """특정 심볼의 포지션 정보 반환"""
-        return self.positions.get(symbol, None)
     
     def get_risk_status(self):
         """현재 리스크 상태 - 실시간 가치 반영"""
@@ -326,29 +192,3 @@ class RiskManager:
             'wins': self.total_wins,
             'losses': self.total_losses
         }
-    
-    def reset_daily_stats(self):
-        """일일 통계 리셋"""
-        today = datetime.now().strftime('%Y-%m-%d')
-        self.daily_pnl[today] = 0
-        self.daily_trades[today] = []
-        logger.info("일일 통계 리셋")
-    
-    def _assess_market_condition(self, indicators):
-        """시장 상황 평가"""
-        score = 1.0
-        
-        # 추세 확인
-        if indicators.get('trend') == 'strong_up':
-            score *= 1.2
-        elif indicators.get('trend') == 'down':
-            score *= 0.8
-        
-        # RSI 확인
-        rsi = indicators.get('rsi', 50)
-        if rsi > 70:  # 과매수
-            score *= 0.7
-        elif rsi < 30:  # 과매도
-            score *= 1.1
-        
-        return min(max(score, 0.5), 1.5)

@@ -326,34 +326,24 @@ class TradingBot:
             position = self.risk_manager.positions[symbol]
             entry_price = position['entry_price']
             
-            # 1. 손절 체크 (보유시간 무시)
+            # 1. 손절 체크 (최우선)
             if self.risk_manager.check_stop_loss(symbol, current_price):
-                logger.info(f"{symbol}: 손절 발동 - 즉시 실행")
-                # 직접 매도 실행
-                quantity = self.get_position_quantity(symbol)
-                if quantity > 0:
-                    try:
-                        order = self.upbit.sell_market_order(ticker, quantity)
-                        if order:
-                            self.strategy.record_trade(symbol, 'sell')
-                            self.risk_manager.update_position(symbol, current_price, quantity, 'sell')
-                            logger.info(f"🔴 손절 완료: {symbol}")
-                    except Exception as e:
-                        logger.error(f"손절 실패: {e}")
+                logger.info(f"{symbol}: 손절 발동 (보유시간 무관)")
+                # 손절은 강제 실행
+                self.force_sell(symbol, current_price)
                 continue
             
-            # 2. 추적 손절 체크 (보유시간 체크)
+            # 2. 추적 손절 체크 (보유시간 고려)
             if self.risk_manager.check_trailing_stop(symbol, current_price):
                 if self.strategy.can_exit_position(symbol):
                     logger.info(f"{symbol}: 추적 손절 발동")
                     self.execute_trade(symbol, 'sell', current_price)
                     continue
             
-            # 3. 목표 수익 체크 (보유시간 체크)
+            # 3. 목표 수익 체크 (보유시간 고려)
             if self.strategy.check_profit_target(entry_price, current_price):
                 if self.strategy.can_exit_position(symbol):
                     logger.info(f"{symbol}: 목표 수익 달성")
-                    self.execute_trade(symbol, 'sell', current_price)
     
     def analyze_and_trade(self):
         """시장 분석 및 거래"""

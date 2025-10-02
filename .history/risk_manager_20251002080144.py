@@ -1,11 +1,9 @@
 # risk_manager.py - 완전한 버전
 
 from datetime import datetime
-import pyupbit
 from collections import defaultdict
 from config import RISK_CONFIG
 from config import STABLE_PAIRS
-from config import ADVANCED_CONFIG
 import logging
 import numpy as np
 from market_condition_check import MarketAnalyzer
@@ -297,34 +295,21 @@ class RiskManager:
         return self.positions.get(symbol, None)
     
     def get_risk_status(self):
-        """현재 리스크 상태 - 실시간 가치 반영"""
+        """현재 리스크 상태 반환"""
         today = datetime.now().strftime('%Y-%m-%d')
         
-        # 현재 가격으로 포지션 가치 재계산
-        total_value = self.current_balance
-        for symbol, pos in self.positions.items():
-            try:
-                current_price = pyupbit.get_current_price(f"KRW-{symbol}")
-                if current_price:
-                    total_value += current_price * pos['quantity']
-                else:
-                    total_value += pos['value']
-            except:
-                total_value += pos['value']
+        # sum()으로 한 줄로 계산
+        total_value = self.current_balance + sum(pos['value'] for pos in self.positions.values())
         
         return {
             'current_balance': self.current_balance,
             'total_value': total_value,
             'daily_pnl': self.daily_pnl[today],
-            'daily_pnl_rate': (self.daily_pnl[today] / self.initial_balance 
-                              if self.initial_balance > 0 else 0),
+            'daily_pnl_rate': self.daily_pnl[today] / self.initial_balance if self.initial_balance > 0 else 0,
             'consecutive_losses': self.consecutive_losses,
             'active_positions': len(self.positions),
             'win_rate': self.win_rate,
-            'kelly_fraction': self._calculate_kelly_fraction(),
-            'total_trades': len(self.all_trades_history),
-            'wins': self.total_wins,
-            'losses': self.total_losses
+            'kelly_fraction': self._calculate_kelly_fraction()
         }
     
     def reset_daily_stats(self):
