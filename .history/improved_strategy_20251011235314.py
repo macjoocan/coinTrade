@@ -39,6 +39,15 @@ class ImprovedStrategy:
         # 기존 모듈
         self.market_analyzer = MarketAnalyzer()
         
+        # ✅ 새로운 분석 모듈 추가
+        self.mtf_analyzer = MultiTimeframeAnalyzer()
+        self.ml_generator = MLSignalGenerator(model_type='random_forest')
+        
+        # ML 모델이 학습되지 않았다면 학습 실행
+        if not self.ml_generator.is_trained:
+            logger.info("🤖 ML 모델 초기 학습을 시작합니다...")
+            self.ml_generator.train_model(TRADING_PAIRS)
+        
         # 거래 추적용
         self.daily_trades = defaultdict(int)
         self.position_entry_time = {}
@@ -48,37 +57,11 @@ class ImprovedStrategy:
         self.entry_score_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
         
         # ✅ 신호 가중치 설정
-        if SIGNAL_INTEGRATION_CONFIG['enabled']:
-            self.signal_weights = SIGNAL_INTEGRATION_CONFIG['weights']
-        else:
-            self.signal_weights = {
-                'technical': 0.35,
-                'mtf': 0.35,
-                'ml': 0.30
-            }
-        
-        # ✅ MTF 설정 및 초기화 (한 번만)
-        if MTF_CONFIG['enabled']:
-            self.mtf_analyzer = MultiTimeframeAnalyzer()
-            self.mtf_min_score = MTF_CONFIG['min_score']
-            self.mtf_min_consensus = MTF_CONFIG['min_consensus']
-        else:
-            self.mtf_analyzer = None
-        
-        # ✅ ML 설정 및 초기화 (한 번만)
-        if ML_CONFIG['enabled']:
-            self.ml_generator = MLSignalGenerator(
-                model_type=ML_CONFIG['model_type']
-            )
-            self.ml_min_probability = ML_CONFIG['prediction']['min_buy_probability']
-            self.ml_min_confidence = ML_CONFIG['prediction']['min_confidence']
-            
-            # ML 모델이 학습되지 않았다면 학습 실행
-            if not self.ml_generator.is_trained:
-                logger.info("🤖 ML 모델 초기 학습을 시작합니다...")
-                self.ml_generator.train_model(TRADING_PAIRS)
-        else:
-            self.ml_generator = None
+        self.signal_weights = {
+            'technical': 0.35,   # 기존 기술적 분석
+            'mtf': 0.35,         # 멀티 타임프레임
+            'ml': 0.30           # 머신러닝
+        }
         
     def can_trade_today(self):
         """오늘 거래 가능한지 확인"""
@@ -200,47 +183,39 @@ class ImprovedStrategy:
         signal_details['technical'] = tech_details
         
         # 4-2. 멀티 타임프레임 분석
-        if MTF_CONFIG['enabled'] and self.mtf_analyzer:  # ✅ None 체크 추가
-            try:
-                mtf_result = self.mtf_analyzer.analyze(symbol)
-                if mtf_result:
-                    signal_scores['mtf'] = mtf_result['final_score'] / 10.0
-                    signal_details['mtf'] = [
-                        f"MTF 점수: {mtf_result['final_score']:.1f}/10",
-                        f"합의: {mtf_result['consensus_level']:.1%}",
-                        f"추세: {mtf_result['dominant_trend']}"
-                    ]
-                else:
-                    signal_scores['mtf'] = 0.5
-                    signal_details['mtf'] = ["MTF 분석 불가"]
-            except Exception as e:
-                logger.warning(f"MTF 분석 실패: {e}")
-                signal_scores['mtf'] = 0.5
-                signal_details['mtf'] = ["MTF 오류"]
-        else:
+        try:
+            mtf_result = self.mtf_analyzer.analyze(symbol)
+            if mtf_result:
+                signal_scores['mtf'] = mtf_result['final_score'] / 10.0  # 정규화
+                signal_details['mtf'] = [
+                    f"MTF 점수: {mtf_result['final_score']:.1f}/10",
+                    f"합의: {mtf_result['consensus_level']:.1%}",
+                    f"추세: {mtf_result['dominant_trend']}"
+                ]
+            else:
+                signal_scores['mtf'] = 0.5  # 중립
+                signal_details['mtf'] = ["MTF 분석 불가"]
+        except Exception as e:
+            logger.warning(f"MTF 분석 실패: {e}")
             signal_scores['mtf'] = 0.5
-            signal_details['mtf'] = ["MTF 비활성화"]
+            signal_details['mtf'] = ["MTF 오류"]
         
         # 4-3. 머신러닝 예측
-        if ML_CONFIG['enabled'] and self.ml_generator:  # ✅ None 체크 추가
-            try:
-                ml_prediction = self.ml_generator.predict(symbol)
-                if ml_prediction:
-                    signal_scores['ml'] = ml_prediction['buy_probability']
-                    signal_details['ml'] = [
-                        f"ML 매수 확률: {ml_prediction['buy_probability']:.1%}",
-                        f"신뢰도: {ml_prediction['confidence']:.1%}"
-                    ]
-                else:
-                    signal_scores['ml'] = 0.5
-                    signal_details['ml'] = ["ML 예측 불가"]
-            except Exception as e:
-                logger.warning(f"ML 예측 실패: {e}")
+        try:
+            ml_prediction = self.ml_generator.predict(symbol)
+            if ml_prediction:
+                signal_scores['ml'] = ml_prediction['buy_probability']
+                signal_details['ml'] = [
+                    f"ML 매수 확률: {ml_prediction['buy_probability']:.1%}",
+                    f"신뢰도: {ml_prediction['confidence']:.1%}"
+                ]
+            else:
                 signal_scores['ml'] = 0.5
-                signal_details['ml'] = ["ML 오류"]
-        else:
+                signal_details['ml'] = ["ML 예측 불가"]
+        except Exception as e:
+            logger.warning(f"ML 예측 실패: {e}")
             signal_scores['ml'] = 0.5
-            signal_details['ml'] = ["ML 비활성화"]
+            signal_details['ml'] = ["ML 오류"]
         
         # ✅ 5. 가중 평균 최종 점수 계산
         final_score = sum(

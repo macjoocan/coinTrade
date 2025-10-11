@@ -329,5 +329,5 @@ def apply_preset(preset_name='balanced'):
     
     print(f"✅ '{preset_name}' 프리셋 적용 완료")
 
-if __name__ != "__main__":  # ✅ import될 때만 실행
-    apply_preset(ACTIVE_PRESET)
+# 시작 시 자동 적용
+apply_preset(ACTIVE_PRESET)

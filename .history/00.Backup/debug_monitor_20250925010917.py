@@ -3,7 +3,7 @@
 import pyupbit
 import time
 from datetime import datetime
-from improved_strategy_bak import ImprovedStrategy
+from improved_strategy import ImprovedStrategy
 from config import TRADING_PAIRS
 
 def debug_signals():

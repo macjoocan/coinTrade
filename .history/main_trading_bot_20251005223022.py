@@ -3,7 +3,7 @@
 import pyupbit
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from improved_strategy import ImprovedStrategy
@@ -60,7 +60,6 @@ class TradingBot:
         self.momentum_scanner = MomentumScanner()
         self.dynamic_coins = []
         self.last_scan_time = 0
-        self.daily_summary = DailySummary()
         
         # ⭐ 포지션 복구 시스템 추가
         self.position_recovery = PositionRecovery(self.upbit)
@@ -252,7 +251,7 @@ class TradingBot:
             if not can_trade:
                 logger.warning(f"리스크 제한: {risk_reason}")
                 return False
-                                
+            
             # 포지션 크기 계산
             self.balance = self.get_balance()
             self.risk_manager.current_balance = self.balance
@@ -275,13 +274,7 @@ class TradingBot:
                 order = self.upbit.buy_market_order(ticker, order_amount)
                 if order:
                     self.strategy.record_trade(symbol, 'buy')
-                    self.risk_manager.update_position(symbol, current_price, quantity, 'buy')            
-                    self.daily_summary.record_trade({
-                        'symbol': symbol,
-                        'type': 'buy',
-                        'price': current_price,
-                        'quantity': quantity
-                    })
+                    self.risk_manager.update_position(symbol, current_price, quantity, 'buy')
                     logger.info(f"✅ 매수 완료: {symbol} @ {current_price:,.0f} KRW")
                     return True
             except Exception as e:
@@ -292,44 +285,22 @@ class TradingBot:
             if not self.strategy.can_exit_position(symbol):
                 logger.info(f"{symbol}: 최소 보유시간 미충족")
                 return False
-
+            
             # 보유 수량 조회
             quantity = self.get_position_quantity(symbol)
             if quantity == 0:
                 return False
-
-            # 현재 포지션 정보 확보
-            position = self.risk_manager.positions.get(symbol)
-            if not position or 'entry_price' not in position:
-                logger.error(f"{symbol}: 포지션 정보가 없어 PnL 계산 불가")
-                return False
-
+            
             # 실제 매도 실행
             try:
                 order = self.upbit.sell_market_order(ticker, quantity)
                 if order:
-                    entry_price = float(position['entry_price'])
-                    pnl = (current_price - entry_price) * quantity
-                    notional = entry_price * quantity
-                    pnl_rate = (pnl / notional) if notional > 0 else 0.0
-
                     self.strategy.record_trade(symbol, 'sell')
                     self.risk_manager.update_position(symbol, current_price, quantity, 'sell')
-
-                    self.daily_summary.record_trade({
-                        'symbol': symbol,
-                        'type': 'sell',
-                        'price': current_price,
-                        'quantity': quantity,
-                        'pnl': pnl,
-                        'pnl_rate': pnl_rate
-                    })
-
-                    logger.info(f"🔴 매도 완료: {symbol} @ {current_price:,.0f} KRW "
-                                f"(PnL {pnl:+,.0f}, {pnl_rate:+.2%})")
+                    logger.info(f"🔴 매도 완료: {symbol} @ {current_price:,.0f} KRW")
                     return True
             except Exception as e:
-                logger.error(f"매도 실패: {e}") 
+                logger.error(f"매도 실패: {e}")
                 
         return False
     
@@ -507,10 +478,8 @@ class TradingBot:
                 # 매일 자정 리셋
                 current_time = datetime.now()
                 if current_time.hour == 0 and current_time.minute == 0:
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.daily_summary.finalize_day(yesterday)                    
                     self.risk_manager.reset_daily_stats()
-                    logger.info("일일 통계 리셋 및 저장 완료")
+                    logger.info("일일 통계 리셋")
                 
             except KeyboardInterrupt:
                 logger.info("봇 종료 중... 포지션 저장")

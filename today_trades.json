@@ -1,0 +1,29 @@
+[
+  {
+    "timestamp": "2025-10-11T23:44:17.453158",
+    "symbol": "BTC",
+    "type": "buy",
+    "price": 170800000.0,
+    "quantity": 0.00015060045169938035,
+    "pnl": 0,
+    "pnl_rate": 0
+  },
+  {
+    "timestamp": "2025-10-11T23:44:18.499289",
+    "symbol": "ETH",
+    "type": "buy",
+    "price": 5812000.0,
+    "quantity": 0.004241268283767062,
+    "pnl": 0,
+    "pnl_rate": 0
+  },
+  {
+    "timestamp": "2025-10-11T23:44:19.514329",
+    "symbol": "SOL",
+    "type": "buy",
+    "price": 278600.0,
+    "quantity": 0.07874215338550833,
+    "pnl": 0,
+    "pnl_rate": 0
+  }
+]

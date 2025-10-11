@@ -3,7 +3,7 @@
 import pyupbit
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import pandas as pd
 import numpy as np
 from improved_strategy import ImprovedStrategy
@@ -292,30 +292,20 @@ class TradingBot:
             if not self.strategy.can_exit_position(symbol):
                 logger.info(f"{symbol}: 최소 보유시간 미충족")
                 return False
-
+            
             # 보유 수량 조회
             quantity = self.get_position_quantity(symbol)
             if quantity == 0:
                 return False
-
-            # 현재 포지션 정보 확보
-            position = self.risk_manager.positions.get(symbol)
-            if not position or 'entry_price' not in position:
-                logger.error(f"{symbol}: 포지션 정보가 없어 PnL 계산 불가")
-                return False
-
+            
             # 실제 매도 실행
             try:
                 order = self.upbit.sell_market_order(ticker, quantity)
                 if order:
-                    entry_price = float(position['entry_price'])
-                    pnl = (current_price - entry_price) * quantity
-                    notional = entry_price * quantity
-                    pnl_rate = (pnl / notional) if notional > 0 else 0.0
-
+                    pnl = (current_price - position['entry_price']) * quantity
+                    pnl_rate = pnl / (position['entry_price'] * quantity)
                     self.strategy.record_trade(symbol, 'sell')
                     self.risk_manager.update_position(symbol, current_price, quantity, 'sell')
-
                     self.daily_summary.record_trade({
                         'symbol': symbol,
                         'type': 'sell',
@@ -324,12 +314,10 @@ class TradingBot:
                         'pnl': pnl,
                         'pnl_rate': pnl_rate
                     })
-
-                    logger.info(f"🔴 매도 완료: {symbol} @ {current_price:,.0f} KRW "
-                                f"(PnL {pnl:+,.0f}, {pnl_rate:+.2%})")
+                    logger.info(f"🔴 매도 완료: {symbol} @ {current_price:,.0f} KRW")
                     return True
             except Exception as e:
-                logger.error(f"매도 실패: {e}") 
+                logger.error(f"매도 실패: {e}")
                 
         return False
     
@@ -507,8 +495,6 @@ class TradingBot:
                 # 매일 자정 리셋
                 current_time = datetime.now()
                 if current_time.hour == 0 and current_time.minute == 0:
-                    yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.daily_summary.finalize_day(yesterday)                    
                     self.risk_manager.reset_daily_stats()
                     logger.info("일일 통계 리셋 및 저장 완료")
                 

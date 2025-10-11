@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-from improved_strategy import ImprovedStrategy
+from improved_strategy_bak import ImprovedStrategy
 from risk_manager import RiskManager
 from position_recovery import PositionRecovery
 from momentum_scanner import MomentumScanner
