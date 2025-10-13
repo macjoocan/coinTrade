@@ -4155,3 +4155,14 @@
 📭 활성 포지션 없음
 [2025-10-13 23:58:00] [INFO] 
 ⏰ 300초 후 다음 스캔...
+[2025-10-14 00:03:00] [INFO] 
+============================================================
+[2025-10-14 00:03:00] [INFO] 📊 시장 스캔: 2025-10-14 00:03:00
+[2025-10-14 00:03:01] [INFO] BTC/USDT: {'RSI': None, 'MA_Cross': None, 'MACD': None, 'Bollinger': None, 'Stochastic': None} (매수:0 매도:0)
+[2025-10-14 00:03:03] [INFO] SOL/USDT: {'RSI': None, 'MA_Cross': None, 'MACD': None, 'Bollinger': None, 'Stochastic': None} (매수:0 매도:0)
+[2025-10-14 00:03:05] [INFO] ETH/USDT: {'RSI': None, 'MA_Cross': None, 'MACD': None, 'Bollinger': None, 'Stochastic': None} (매수:0 매도:0)
+[2025-10-14 00:03:08] [INFO] DOGE/USDT: {'RSI': None, 'MA_Cross': None, 'MACD': None, 'Bollinger': None, 'Stochastic': None} (매수:0 매도:0)
+[2025-10-14 00:03:10] [INFO] 
+📭 활성 포지션 없음
+[2025-10-14 00:03:10] [INFO] 
+⏰ 300초 후 다음 스캔...
