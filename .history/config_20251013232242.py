@@ -1,6 +1,6 @@
 STRATEGY_CONFIG = {
     'min_profit_target': 0.01,       # 1.5% → 1% (현실적으로)
-    'max_trades_per_day': 20,        
+    'max_trades_per_day': 10,        
     'min_hold_time': 3600,           # 2시간 → 1시간
 }
 
@@ -8,7 +8,7 @@ RISK_CONFIG = {
     'max_position_size': 0.25,       # 20% → 25% 
     'stop_loss': 0.012,              # 1.5% → 1.2% (더 타이트)
     'daily_loss_limit': 0.02,        
-    'max_positions': 5,              
+    'max_positions': 3,              
 }
 
 EXIT_PRIORITY = {
@@ -297,8 +297,7 @@ DEBUG_CONFIG = {
 }
 
 # 기본 안정 코인
-# STABLE_PAIRS = ['BTC', 'ETH', 'SOL']
-STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA']
+STABLE_PAIRS = ['BTC', 'ETH', 'SOL']
 
 # 안정적인 메이저 코인만
 TRADING_PAIRS = STABLE_PAIRS

@@ -13,7 +13,6 @@ from risk_manager import RiskManager
 from position_recovery import PositionRecovery
 from daily_summary import DailySummary
 from momentum_scanner_improved import ImprovedMomentumScanner
-from partial_exit_manager import PartialExitManager
 
 from config import (
     TRADING_PAIRS,
@@ -39,6 +38,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 class TradingBot:
     def __init__(self, access_key, secret_key):
         self.upbit = pyupbit.Upbit(access_key, secret_key)
@@ -49,7 +59,7 @@ class TradingBot:
         self.risk_manager = RiskManager(self.balance)
         
         # 동적 모멘텀 스캐너 초기화
-        self.momentum_scanner = ImprovedMomentumScanner()
+        self.momentum_scanner = MomentumScanner()
         self.dynamic_coins = []
         self.last_scan_time = 0
         self.daily_summary = DailySummary()

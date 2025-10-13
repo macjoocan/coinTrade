@@ -1,5 +1,3 @@
-# dashboard.py - 개선 버전 (MTF + ML 추가, 통계 하단 배치)
-
 import os
 import time
 import pyupbit
@@ -16,7 +14,7 @@ from collections import deque
 console = Console()
 
 class MarketDataCache:
-    """시장 데이터 캐싱 클래스"""
+    """ì‹œìž¥ ë°ì´í„° ìºì‹± í´ëž˜ìŠ¤"""
     def __init__(self):
         self.cache = {}
         self.last_update = {}
@@ -27,7 +25,7 @@ class MarketDataCache:
         self.last_movers_update = datetime.now() - timedelta(minutes=5)
         
     def get_price_with_change(self, ticker, force_update=False):
-        """가격과 24시간 변동률 함께 반환"""
+        """ê°€ê²©ê³¼ 24ì‹œê°„ ë³€ë™ë¥  í•¨ê»˜ ë°˜í™˜"""
         now = datetime.now()
         symbol = ticker.replace("KRW-", "")
         
@@ -61,7 +59,7 @@ class MarketDataCache:
         return price, change_rate
     
     def _fetch_price(self, ticker):
-        """가격 가져오기"""
+        """ê°€ê²© ê°€ì ¸ì˜¤ê¸°"""
         try:
             price = pyupbit.get_current_price(ticker)
             if price:
@@ -73,7 +71,7 @@ class MarketDataCache:
         return self.cache.get(ticker, 0)
 
     def _calculate_change(self, ticker):
-        """24시간 변동률 계산"""
+        """24ì‹œê°„ ë³€ë™ë¥  ê³„ì‚°"""
         try:
             df = pyupbit.get_ohlcv(ticker, interval="day", count=2)
             if df is not None and len(df) >= 2:
@@ -94,7 +92,7 @@ class MarketDataCache:
         return self.daily_change_cache.get(change_key, 0)
     
     def get_top_movers(self):
-        """TOP 5 상승/하락"""
+        """TOP 5 ìƒìŠ¹/í•˜ë½"""
         now = datetime.now()
         elapsed = (now - self.last_movers_update).total_seconds()
         
@@ -155,41 +153,41 @@ class TradingDashboard:
         self.setup_layout()
 
     def setup_layout(self):
-        """레이아웃 구성 - 새로운 구조"""
-        # 메인 레이아웃: 상단(헤더) + 중단(메인 콘텐츠) + 하단(통계)
+        """ë ˆì´ì•„ì›ƒ êµ¬ì„± - ìƒˆë¡œìš´ êµ¬ì¡°"""
+        # ë©”ì¸ ë ˆì´ì•„ì›ƒ: ìƒë‹¨(í—¤ë”) + ì¤‘ë‹¨(ë©”ì¸ ì½˜í…ì¸ ) + í•˜ë‹¨(í†µê³„)
         self.layout.split(
             Layout(name="header", size=3),
             Layout(name="main"),
-            Layout(name="stats", size=12),  # 통계 영역 (24h, 7d, 30d)
+            Layout(name="stats", size=12),  # í†µê³„ ì˜ì—­ (24h, 7d, 30d)
             Layout(name="footer", size=3)
         )
         
-        # 메인 콘텐츠: 좌/중/우
+        # ë©”ì¸ ì½˜í…ì¸ : ì¢Œ/ì¤‘/ìš°
         self.layout["main"].split_row(
             Layout(name="left", ratio=1),
             Layout(name="center", ratio=1),
             Layout(name="right", ratio=1)
         )
         
-        # 좌측: 가격 + 포지션
+        # ì¢Œì¸¡: ê°€ê²© + í¬ì§€ì…˜
         self.layout["left"].split(
             Layout(name="prices"),
             Layout(name="positions")
         )
         
-        # 중앙: 시장 동향 + 동적 코인
+        # ì¤‘ì•™: ì‹œìž¥ ë™í–¥ + ë™ì  ì½”ì¸
         self.layout["center"].split(
             Layout(name="top_movers"),
             Layout(name="dynamic_coins")
         )
         
-        # 우측: MTF 분석 + ML 예측
+        # ìš°ì¸¡: MTF ë¶„ì„ + ML ì˜ˆì¸¡
         self.layout["right"].split(
             Layout(name="mtf_analysis"),
             Layout(name="ml_prediction")
         )
         
-        # 하단 통계: 24h, 7d, 30d 가로 배치
+        # í•˜ë‹¨ í†µê³„: 24h, 7d, 30d ê°€ë¡œ ë°°ì¹˜
         self.layout["stats"].split_row(
             Layout(name="stats_24h"),
             Layout(name="stats_7d"),
@@ -197,26 +195,26 @@ class TradingDashboard:
         )
         
     def track_api_call(self):
-        """API 호출 추적"""
+        """API í˜¸ì¶œ ì¶”ì """
         self.api_calls.append(datetime.now())
     
     def get_header(self):
-        """헤더"""
+        """í—¤ë”"""
         return Panel(
-            f"[bold cyan]🚀 Upbit Advanced Trading Dashboard[/bold cyan]\n"
+            f"[bold cyan]ðŸš€ Upbit Advanced Trading Dashboard[/bold cyan]\n"
             f"[yellow]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/yellow] | "
             f"Coins: {', '.join(TRADING_PAIRS[:5])}{'...' if len(TRADING_PAIRS) > 5 else ''}",
             style="bold on dark_blue"
         )
     
     def get_price_table(self):
-        """가격 테이블"""
+        """ê°€ê²© í…Œì´ë¸”"""
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Symbol", style="cyan", width=8)
         table.add_column("Price", justify="right")
         table.add_column("24h", justify="right", width=10)
         
-        for symbol in TRADING_PAIRS[:8]:  # 상위 8개만 표시
+        for symbol in TRADING_PAIRS[:8]:  # ìƒìœ„ 8ê°œë§Œ í‘œì‹œ
             ticker = f"KRW-{symbol}"
             try:
                 price, change_rate = self.cache.get_price_with_change(ticker)
@@ -225,15 +223,15 @@ class TradingDashboard:
                 if price:
                     if change_rate > 0:
                         change_color = "green"
-                        arrow = "↑"
+                        arrow = "â†‘"
                         sign = "+"
                     elif change_rate < 0:
                         change_color = "red"
-                        arrow = "↓"
+                        arrow = "â†“"
                         sign = ""
                     else:
                         change_color = "yellow"
-                        arrow = "→"
+                        arrow = "â†’"
                         sign = ""
                     
                     if price > 1000:
@@ -254,20 +252,20 @@ class TradingDashboard:
             except Exception as e:
                 table.add_row(symbol, "Error", "-")
         
-        return Panel(table, title="💰 Watchlist", border_style="cyan")
+        return Panel(table, title="ðŸ’° Watchlist", border_style="cyan")
     
     def get_top_movers_panel(self):
-        """TOP 5 통합 패널"""
+        """TOP 5 í†µí•© íŒ¨ë„"""
         movers = self.cache.get_top_movers()
         
-        text_lines = ["[bold green]📈 Top Gainers[/bold green]"]
+        text_lines = ["[bold green]ðŸ“ˆ Top Gainers[/bold green]"]
         for i, coin in enumerate(movers['gainers'][:3], 1):
             text_lines.append(
                 f"{i}. {coin['symbol']}: [green]+{coin['change']:.1f}%[/green]"
             )
         
         text_lines.append("")
-        text_lines.append("[bold red]📉 Top Losers[/bold red]")
+        text_lines.append("[bold red]ðŸ“‰ Top Losers[/bold red]")
         for i, coin in enumerate(movers['losers'][:3], 1):
             text_lines.append(
                 f"{i}. {coin['symbol']}: [red]{coin['change']:.1f}%[/red]"
@@ -278,116 +276,107 @@ class TradingDashboard:
         
         return Panel(
             "\n".join(text_lines),
-            title="📊 Market Movers",
+            title="ðŸ“Š Market Movers",
             border_style="yellow"
         )
 
     def get_dynamic_coins_panel(self):
-        """동적 코인 상태 패널"""
+        """ë™ì  ì½”ì¸ ìƒíƒœ íŒ¨ë„"""
         lines = []
         
         try:
-            from momentum_scanner_improved import ImprovedMomentumScanner
-            scanner = ImprovedMomentumScanner()
-            
+            from momentum_scanner import MomentumScanner
+            scanner = MomentumScanner()
             dynamic_coins = scanner.scan_top_performers(top_n=3)
             
             if dynamic_coins:
-                lines.append("[bold yellow]🔥 Momentum Coins[/bold yellow]")
+                lines.append("[bold yellow]ðŸ”¥ Momentum Coins[/bold yellow]")
                 lines.append("")
-
+                
                 for coin in dynamic_coins:
                     ticker = f"KRW-{coin}"
                     try:
                         df = pyupbit.get_ohlcv(ticker, "day", 2)
                         if df is not None and len(df) >= 2:
                             change = ((df['close'].iloc[-1] - df['close'].iloc[-2]) / 
-                                    df['close'].iloc[-2] * 100)
+                                     df['close'].iloc[-2] * 100)
                             
                             color = "green" if change > 0 else "red"
-                            
-                            # ✅ 거래량 정보도 추가
-                            volume = df['volume'].iloc[-1] * df['close'].iloc[-1]
-                            volume_str = f"{volume/1e9:.0f}억" if volume > 1e9 else f"{volume/1e8:.0f}천만"
-                            
-                            lines.append(
-                                f"{coin}: [{color}]{change:+.1f}%[/{color}] "
-                                f"[dim]({volume_str})[/dim]"
-                            )
+                            lines.append(f"{coin}: [{color}]{change:+.1f}%[/{color}]")
                     except:
-                        lines.append(f"{coin}: [dim]데이터 없음[/dim]")
+                        lines.append(f"{coin}: [dim]ë°ì´í„° ì—†ìŒ[/dim]")
             else:
-                lines.append("[dim]모멘텀 코인 없음[/dim]")
+                lines.append("[dim]ëª¨ë©˜í…€ ì½”ì¸ ì—†ìŒ[/dim]")
                 
         except Exception as e:
-            lines.append(f"[dim]로딩 실패: {str(e)[:20]}[/dim]")
+            lines.append(f"[dim]ë¡œë”© ì‹¤íŒ¨: {str(e)[:20]}[/dim]")
         
         if not lines:
-            lines.append("[dim]대기 중...[/dim]")
+            lines.append("[dim]ëŒ€ê¸° ì¤‘...[/dim]")
             
         return Panel(
             "\n".join(lines),
-            title="🚀 Dynamic Coins",
+            title="ðŸš€ Dynamic Coins",
             border_style="yellow"
         )
     
     def get_mtf_analysis_panel(self):
-        """멀티 타임프레임 분석 패널"""
+        """ë©€í‹° íƒ€ìž„í”„ë ˆìž„ ë¶„ì„ íŒ¨ë„"""
         try:
             from multi_timeframe_analyzer import MultiTimeframeAnalyzer
             
             mtf = MultiTimeframeAnalyzer()
-            symbol = TRADING_PAIRS[0]  # 첫 번째 코인 분석
+            symbol = TRADING_PAIRS[0]  # ì²« ë²ˆì§¸ ì½”ì¸ ë¶„ì„
             
             analysis = mtf.analyze(symbol)
             
             if not analysis:
-                return Panel("Loading MTF...", title="📈 Multi-Timeframe", border_style="blue")
+                return Panel("Loading MTF...", title="ðŸ“ˆ Multi-Timeframe", border_style="blue")
             
             lines = []
             lines.append(f"[bold cyan]{symbol} Analysis[/bold cyan]")
             lines.append("")
             
-            # 최종 점수
+            # ìµœì¢… ì ìˆ˜
             score = analysis['final_score']
             score_color = "green" if score >= 7.0 else "yellow" if score >= 5.5 else "red"
             lines.append(f"Score: [{score_color}]{score:.1f}/10[/{score_color}]")
             
-            # 합의 수준
+            # í•©ì˜ ìˆ˜ì¤€
             consensus = analysis['consensus_level']
             consensus_color = "green" if consensus >= 0.65 else "yellow" if consensus >= 0.5 else "red"
             lines.append(f"Consensus: [{consensus_color}]{consensus:.0%}[/{consensus_color}]")
             
-            # 추세
+            # ì¶”ì„¸
             trend = analysis['dominant_trend']
-            trend_emoji = "📈" if 'up' in trend else "📉" if 'down' in trend else "➡️"
+            trend_emoji = "ðŸ“ˆ" if 'up' in trend else "ðŸ“‰" if 'down' in trend else "âž¡ï¸"
             lines.append(f"Trend: {trend_emoji} {trend}")
             
-            # 신호 강도
+            # ì‹ í˜¸ ê°•ë„
             strength = analysis['signal_strength']
             strength_color = "green" if strength == "strong" else "yellow" if strength == "moderate" else "red"
             lines.append(f"Strength: [{strength_color}]{strength.upper()}[/{strength_color}]")
             
-            # 타임프레임 상세
+            # íƒ€ìž„í”„ë ˆìž„ ìƒì„¸
             lines.append("\n[dim]Timeframes:[/dim]")
             for tf, data in analysis['timeframe_details'].items():
                 lines.append(f"[dim]{tf}: {data['score']:.1f}, {data['trend']}[/dim]")
             
             return Panel(
                 "\n".join(lines),
-                title="📈 Multi-Timeframe Analysis",
+                title="ðŸ“ˆ Multi-Timeframe Analysis",
                 border_style="blue"
             )
             
         except Exception as e:
             return Panel(
                 f"MTF Error:\n{str(e)[:50]}",
-                title="📈 Multi-Timeframe",
+                title="ðŸ“ˆ Multi-Timeframe",
                 border_style="red"
             )
     
     def get_ml_prediction_panel(self):
-        """ML 예측 패널"""
+        """ML ì˜ˆì¸¡ íŒ¨ë„"""
         try:
             from ml_signal_generator import MLSignalGenerator
             
@@ -397,7 +386,7 @@ class TradingDashboard:
                 return Panel(
                     "[yellow]Model not trained yet[/yellow]\n"
                     "[dim]Training on first run...[/dim]",
-                    title="🤖 ML Prediction",
+                    title="ðŸ¤– ML Prediction",
                     border_style="magenta"
                 )
             
@@ -405,47 +394,47 @@ class TradingDashboard:
             prediction = ml.predict(symbol)
             
             if not prediction:
-                return Panel("Loading ML...", title="🤖 ML Prediction", border_style="magenta")
+                return Panel("Loading ML...", title="ðŸ¤– ML Prediction", border_style="magenta")
             
             lines = []
             lines.append(f"[bold magenta]{symbol} Prediction[/bold magenta]")
             lines.append("")
             
-            # 매수 확률
+            # ë§¤ìˆ˜ í™•ë¥ 
             prob = prediction['buy_probability']
             prob_color = "green" if prob >= 0.65 else "yellow" if prob >= 0.55 else "red"
             lines.append(f"Buy Probability: [{prob_color}]{prob:.1%}[/{prob_color}]")
             
-            # 신뢰도
+            # ì‹ ë¢°ë„
             confidence = prediction['confidence']
             conf_color = "green" if confidence >= 0.70 else "yellow" if confidence >= 0.60 else "red"
             lines.append(f"Confidence: [{conf_color}]{confidence:.1%}[/{conf_color}]")
             
-            # 예측 결과
+            # ì˜ˆì¸¡ ê²°ê³¼
             if prediction['prediction']:
-                lines.append("\n[green]✅ BUY Signal[/green]")
+                lines.append("\n[green]âœ… BUY Signal[/green]")
             else:
-                lines.append("\n[red]❌ SELL/HOLD Signal[/red]")
+                lines.append("\n[red]âŒ SELL/HOLD Signal[/red]")
             
-            # 시간
+            # ì‹œê°„
             pred_time = prediction['timestamp'].strftime('%H:%M:%S')
             lines.append(f"\n[dim]Time: {pred_time}[/dim]")
             
             return Panel(
                 "\n".join(lines),
-                title="🤖 ML Prediction",
+                title="ðŸ¤– ML Prediction",
                 border_style="magenta"
             )
             
         except Exception as e:
             return Panel(
                 f"ML Error:\n{str(e)[:50]}",
-                title="🤖 ML Prediction",
+                title="ðŸ¤– ML Prediction",
                 border_style="red"
             )
     
     def get_positions_panel(self):
-        """포지션 상태"""
+        """í¬ì§€ì…˜ ìƒíƒœ"""
         lines = []
         
         try:
@@ -456,13 +445,13 @@ class TradingDashboard:
                     positions = data.get('positions', {})
                 
                 if positions:
-                    lines.append("[bold green]📦 Active Positions[/bold green]")
+                    lines.append("[bold green]ðŸ“¦ Active Positions[/bold green]")
                     lines.append("")
                     
                     for symbol, pos in list(positions.items())[:3]:
                         entry_price = pos['entry_price']
                         
-                        # 현재가 가져오기
+                        # í˜„ìž¬ê°€ ê°€ì ¸ì˜¤ê¸°
                         ticker = f"KRW-{symbol}"
                         current_price = pyupbit.get_current_price(ticker)
                         
@@ -485,12 +474,12 @@ class TradingDashboard:
         
         return Panel(
             "\n".join(lines),
-            title="📦 Positions",
+            title="ðŸ“¦ Positions",
             border_style="green"
         )
     
     def calculate_period_stats(self, days):
-        """기간별 통계 계산"""
+        """ê¸°ê°„ë³„ í†µê³„ ê³„ì‚°"""
         result = {
             'total_pnl': 0,
             'trade_count': 0,
@@ -554,17 +543,17 @@ class TradingDashboard:
         return result
     
     def get_stats_panel(self, days, title):
-        """통계 패널 생성"""
+        """í†µê³„ íŒ¨ë„ ìƒì„±"""
         stats = self.calculate_period_stats(days)
         
-        # 테이블 생성
+        # í…Œì´ë¸” ìƒì„±
         table = Table(show_header=False, box=None, padding=(0, 1), expand=True)
         table.add_column("Item", style="cyan", width=12)
         table.add_column("Value", justify="right")
         
-        # 수익률
+        # ìˆ˜ìµë¥ 
         pnl_color = "green" if stats['total_pnl'] > 0 else "red"
-        return_rate = (stats['total_pnl'] / 1000000) * 100  # 100만원 기준
+        return_rate = (stats['total_pnl'] / 1000000) * 100  # 100ë§Œì› ê¸°ì¤€
         
         table.add_row("Total PnL", f"[{pnl_color}]{stats['total_pnl']:+,.0f}[/{pnl_color}]")
         table.add_row("Return", f"[{pnl_color}]{return_rate:+.2f}%[/{pnl_color}]")
@@ -586,8 +575,8 @@ class TradingDashboard:
         )
     
     def get_footer(self):
-        """푸터"""
-        # API 상태
+        """í‘¸í„°"""
+        # API ìƒíƒœ
         now = datetime.now()
         recent_calls = [t for t in self.api_calls if (now - t).total_seconds() < 60]
         calls_per_minute = len(recent_calls)
@@ -610,12 +599,12 @@ class TradingDashboard:
         return Panel(footer_text, border_style="dim")
     
     def update(self):
-        """업데이트"""
+        """ì—…ë°ì´íŠ¸"""
         try:
-            # 상단
+            # ìƒë‹¨
             self.layout["header"].update(self.get_header())
             
-            # 메인 콘텐츠
+            # ë©”ì¸ ì½˜í…ì¸ 
             self.layout["prices"].update(self.get_price_table())
             self.layout["positions"].update(self.get_positions_panel())
             self.layout["top_movers"].update(self.get_top_movers_panel())
@@ -623,12 +612,12 @@ class TradingDashboard:
             self.layout["mtf_analysis"].update(self.get_mtf_analysis_panel())
             self.layout["ml_prediction"].update(self.get_ml_prediction_panel())
             
-            # 하단 통계 (24h, 7d, 30d)
-            self.layout["stats_24h"].update(self.get_stats_panel(1, "📊 24 Hours"))
-            self.layout["stats_7d"].update(self.get_stats_panel(7, "📊 7 Days"))
-            self.layout["stats_30d"].update(self.get_stats_panel(30, "📊 30 Days"))
+            # í•˜ë‹¨ í†µê³„ (24h, 7d, 30d)
+            self.layout["stats_24h"].update(self.get_stats_panel(1, "ðŸ“Š 24 Hours"))
+            self.layout["stats_7d"].update(self.get_stats_panel(7, "ðŸ“Š 7 Days"))
+            self.layout["stats_30d"].update(self.get_stats_panel(30, "ðŸ“Š 30 Days"))
             
-            # 푸터
+            # í‘¸í„°
             self.layout["footer"].update(self.get_footer())
             
         except Exception as e:
@@ -640,15 +629,15 @@ def main():
     dashboard = TradingDashboard()
     
     console.clear()
-    console.print("[bold cyan]🚀 Upbit Advanced Trading Dashboard[/bold cyan]")
-    console.print("[yellow]⚡ Features: MTF Analysis + ML Prediction + Multi-Period Stats[/yellow]")
+    console.print("[bold cyan]ðŸš€ Upbit Advanced Trading Dashboard[/bold cyan]")
+    console.print("[yellow]âš¡ Features: MTF Analysis + ML Prediction + Multi-Period Stats[/yellow]")
     console.print("[dim]Loading... First update may take 10-15 seconds.[/dim]")
     console.print("Press Ctrl+C to exit\n")
     
     try:
         with Live(dashboard.update(), refresh_per_second=0.5, console=console) as live:
             while True:
-                time.sleep(10)  # 10초마다 화면 업데이트
+                time.sleep(10)  # 10ì´ˆë§ˆë‹¤ í™”ë©´ ì—…ë°ì´íŠ¸
                 live.update(dashboard.update())
     except KeyboardInterrupt:
         console.print("\n[bold red]Dashboard stopped[/bold red]")

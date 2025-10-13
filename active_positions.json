@@ -1,20 +1,20 @@
 {
-  "timestamp": "2025-10-12T00:08:25.051428",
+  "timestamp": "2025-10-14T00:01:12.640599",
   "positions": {
-    "BTC": {
-      "entry_price": 170800000.0,
-      "quantity": 0.0001506,
-      "entry_time": "2025-10-11T23:44:17.453158"
+    "DOGE": {
+      "entry_price": 311.0,
+      "quantity": 80.32588766,
+      "entry_time": "2025-10-13T23:49:41.803341"
     },
-    "ETH": {
-      "entry_price": 5812000.0,
-      "quantity": 0.00424053,
-      "entry_time": "2025-10-11T23:44:18.499289"
+    "AERGO": {
+      "entry_price": 122.0,
+      "quantity": 117.15569899,
+      "entry_time": "2025-10-13T23:53:23.305944"
     },
-    "SOL": {
-      "entry_price": 278600.0,
-      "quantity": 0.07862926,
-      "entry_time": "2025-10-11T23:44:19.514329"
+    "NEWT": {
+      "entry_price": 234.0,
+      "quantity": 63.87094958,
+      "entry_time": "2025-10-13T23:42:26.564643"
     }
   }
 }

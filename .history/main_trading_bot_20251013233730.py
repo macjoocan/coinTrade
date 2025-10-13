@@ -8,12 +8,15 @@ import pandas as pd
 import numpy as np
 import sys
 import io
+
+# ✅ 명확하게 분리된 import (이름 충돌 방지)
 from improved_strategy import ImprovedStrategy
 from risk_manager import RiskManager
 from position_recovery import PositionRecovery
 from daily_summary import DailySummary
+
+# ✅ 개선된 모멘텀 스캐너를 별도 이름으로 import
 from momentum_scanner_improved import ImprovedMomentumScanner
-from partial_exit_manager import PartialExitManager
 
 from config import (
     TRADING_PAIRS,
@@ -23,6 +26,7 @@ from config import (
     STABLE_PAIRS,
     DYNAMIC_COIN_CONFIG
 )
+
 
 # 한글/이모지 인코딩 문제 해결
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -39,17 +43,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 class TradingBot:
     def __init__(self, access_key, secret_key):
         self.upbit = pyupbit.Upbit(access_key, secret_key)
         self.balance = self.get_balance()
         
         # 전략 및 리스크 매니저 초기화
-        self.strategy = ImprovedStrategy()
+        self.strategy = MomentumScanner()
         self.risk_manager = RiskManager(self.balance)
         
         # 동적 모멘텀 스캐너 초기화
-        self.momentum_scanner = ImprovedMomentumScanner()
+        self.momentum_scanner = MomentumScanner()
         self.dynamic_coins = []
         self.last_scan_time = 0
         self.daily_summary = DailySummary()

@@ -6,22 +6,20 @@ import logging
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-import sys
-import io
-from improved_strategy import ImprovedStrategy
+# from improved_strategy import ImprovedStrategy
+from momentum_scanner_improved import ImprovedMomentumScanner as MomentumScanner
 from risk_manager import RiskManager
 from position_recovery import PositionRecovery
+from momentum_scanner import MomentumScanner
 from daily_summary import DailySummary
-from momentum_scanner_improved import ImprovedMomentumScanner
-from partial_exit_manager import PartialExitManager
-
+from config import STABLE_PAIRS, DYNAMIC_COIN_CONFIG
+import sys
+import io
 from config import (
     TRADING_PAIRS,
     STRATEGY_CONFIG, 
     RISK_CONFIG,
-    ADVANCED_CONFIG,
-    STABLE_PAIRS,
-    DYNAMIC_COIN_CONFIG
+    ADVANCED_CONFIG
 )
 
 # 한글/이모지 인코딩 문제 해결
@@ -39,17 +37,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 class TradingBot:
     def __init__(self, access_key, secret_key):
         self.upbit = pyupbit.Upbit(access_key, secret_key)
         self.balance = self.get_balance()
         
         # 전략 및 리스크 매니저 초기화
-        self.strategy = ImprovedStrategy()
+        self.strategy = MomentumScanner()
         self.risk_manager = RiskManager(self.balance)
         
         # 동적 모멘텀 스캐너 초기화
-        self.momentum_scanner = ImprovedMomentumScanner()
+        self.momentum_scanner = MomentumScanner()
         self.dynamic_coins = []
         self.last_scan_time = 0
         self.daily_summary = DailySummary()
@@ -57,8 +66,6 @@ class TradingBot:
         # ⭐ 포지션 복구 시스템 추가
         self.position_recovery = PositionRecovery(self.upbit)
         self.recover_existing_positions()
-        
-        self.partial_exit_manager = PartialExitManager()
         
         logger.info(f"봇 초기화 완료. 초기 자본: {self.balance:,.0f} KRW")
 
@@ -339,8 +346,7 @@ class TradingBot:
         return 0
     
     def check_exit_conditions(self):
-        """개선된 청산 조건 체크"""
-        
+        """모든 포지션의 청산 조건 체크"""
         for symbol in list(self.risk_manager.positions.keys()):
             ticker = f"KRW-{symbol}"
             current_price = pyupbit.get_current_price(ticker)
@@ -350,52 +356,35 @@ class TradingBot:
             
             position = self.risk_manager.positions[symbol]
             entry_price = position['entry_price']
-            entry_time = position['entry_time']
             
-            # 현재 보유 수량
-            current_quantity = self.get_position_quantity(symbol)
-            
-            # 1. 부분 매도 체크 (최우선)
-            partial_exit, sold_quantity = self.partial_exit_manager.check_partial_exit(
-                symbol, entry_price, entry_time, current_price, current_quantity, self.upbit
-            )
-            
-            if partial_exit:
-                # 수량 업데이트
-                remaining = current_quantity - sold_quantity
-                
-                if remaining < 0.0001:  # 전량 매도됨
-                    self.partial_exit_manager.reset_position(symbol)
-                    self.risk_manager.update_position(symbol, current_price, current_quantity, 'sell')
-                    logger.info(f"✅ {symbol} 전량 청산 완료")
-                else:
-                    # 포지션 수량만 업데이트 (entry_price는 유지)
-                    self.risk_manager.positions[symbol]['quantity'] = remaining
-                    logger.info(f"ℹ️  {symbol} 남은 수량: {remaining:.8f}")
-                
-                continue
-            
-            # 2. 손절 체크 (보유시간 무시)
+            # 1. 손절 체크 (보유시간 무시)
             if self.risk_manager.check_stop_loss(symbol, current_price):
-                logger.warning(f"{symbol}: 손절 발동 - 즉시 실행")
-                self.execute_trade(symbol, 'sell', current_price)
-                self.partial_exit_manager.reset_position(symbol)
+                logger.info(f"{symbol}: 손절 발동 - 즉시 실행")
+                # 직접 매도 실행
+                quantity = self.get_position_quantity(symbol)
+                if quantity > 0:
+                    try:
+                        order = self.upbit.sell_market_order(ticker, quantity)
+                        if order:
+                            self.strategy.record_trade(symbol, 'sell')
+                            self.risk_manager.update_position(symbol, current_price, quantity, 'sell')
+                            logger.info(f"🔴 손절 완료: {symbol}")
+                    except Exception as e:
+                        logger.error(f"손절 실패: {e}")
                 continue
             
-            # 3. 추적 손절 체크
+            # 2. 추적 손절 체크 (보유시간 체크)
             if self.risk_manager.check_trailing_stop(symbol, current_price):
                 if self.strategy.can_exit_position(symbol):
                     logger.info(f"{symbol}: 추적 손절 발동")
                     self.execute_trade(symbol, 'sell', current_price)
-                    self.partial_exit_manager.reset_position(symbol)
                     continue
             
-            # 4. 목표 수익 체크 (남은 수량 전량 매도)
+            # 3. 목표 수익 체크 (보유시간 체크)
             if self.strategy.check_profit_target(entry_price, current_price):
                 if self.strategy.can_exit_position(symbol):
-                    logger.info(f"{symbol}: 최종 목표 수익 달성")
+                    logger.info(f"{symbol}: 목표 수익 달성")
                     self.execute_trade(symbol, 'sell', current_price)
-                    self.partial_exit_manager.reset_position(symbol)
     
     def analyze_and_trade(self):
         """시장 분석 및 거래"""

@@ -13,7 +13,7 @@ from risk_manager import RiskManager
 from position_recovery import PositionRecovery
 from daily_summary import DailySummary
 from momentum_scanner_improved import ImprovedMomentumScanner
-from partial_exit_manager import PartialExitManager
+from partial_exit_manager PartialExitManager
 
 from config import (
     TRADING_PAIRS,
@@ -35,6 +35,17 @@ logging.basicConfig(
     handlers=[
         logging.FileHandler('trading.log', encoding='utf-8'),  # UTF-8 인코딩 추가
         logging.StreamHandler(sys.stdout)  # 수정된 stdout 사용
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading.log'),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)

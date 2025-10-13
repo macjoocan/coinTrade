@@ -39,6 +39,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('trading.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 class TradingBot:
     def __init__(self, access_key, secret_key):
         self.upbit = pyupbit.Upbit(access_key, secret_key)

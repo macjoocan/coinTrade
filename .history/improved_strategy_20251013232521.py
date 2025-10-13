@@ -258,8 +258,6 @@ class ImprovedStrategy:
             adjusted_threshold = base_threshold - 1.0
         else:
             adjusted_threshold = base_threshold - 1.5
-            
-        logger.info(f"시장: {market_condition}, 기준: {base_threshold} → {adjusted_threshold}")
         
         # 7. 상세 로깅
         logger.info(f"\n{'='*60}")

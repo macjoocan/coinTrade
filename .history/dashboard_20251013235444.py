@@ -295,27 +295,27 @@ class TradingDashboard:
             if dynamic_coins:
                 lines.append("[bold yellow]🔥 Momentum Coins[/bold yellow]")
                 lines.append("")
-
-                for coin in dynamic_coins:
-                    ticker = f"KRW-{coin}"
-                    try:
-                        df = pyupbit.get_ohlcv(ticker, "day", 2)
-                        if df is not None and len(df) >= 2:
-                            change = ((df['close'].iloc[-1] - df['close'].iloc[-2]) / 
-                                    df['close'].iloc[-2] * 100)
-                            
-                            color = "green" if change > 0 else "red"
-                            
-                            # ✅ 거래량 정보도 추가
-                            volume = df['volume'].iloc[-1] * df['close'].iloc[-1]
-                            volume_str = f"{volume/1e9:.0f}억" if volume > 1e9 else f"{volume/1e8:.0f}천만"
-                            
-                            lines.append(
-                                f"{coin}: [{color}]{change:+.1f}%[/{color}] "
-                                f"[dim]({volume_str})[/dim]"
-                            )
-                    except:
-                        lines.append(f"{coin}: [dim]데이터 없음[/dim]")
+                
+        for coin in dynamic_coins:
+            ticker = f"KRW-{coin}"
+            try:
+                df = pyupbit.get_ohlcv(ticker, "day", 2)
+                if df is not None and len(df) >= 2:
+                    change = ((df['close'].iloc[-1] - df['close'].iloc[-2]) / 
+                            df['close'].iloc[-2] * 100)
+                    
+                    color = "green" if change > 0 else "red"
+                    
+                    # ✅ 거래량 정보도 추가
+                    volume = df['volume'].iloc[-1] * df['close'].iloc[-1]
+                    volume_str = f"{volume/1e9:.0f}억" if volume > 1e9 else f"{volume/1e8:.0f}천만"
+                    
+                    lines.append(
+                        f"{coin}: [{color}]{change:+.1f}%[/{color}] "
+                        f"[dim]({volume_str})[/dim]"
+                    )
+            except:
+                lines.append(f"{coin}: [dim]데이터 없음[/dim]")
             else:
                 lines.append("[dim]모멘텀 코인 없음[/dim]")
                 

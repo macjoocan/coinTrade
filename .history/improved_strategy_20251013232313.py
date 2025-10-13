@@ -253,13 +253,11 @@ class ImprovedStrategy:
         base_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
         
         if market_condition == 'bearish':
-            adjusted_threshold = base_threshold + 0.5
+            adjusted_threshold = base_threshold + 1.0
         elif market_condition == 'bullish':
-            adjusted_threshold = base_threshold - 1.0
+            adjusted_threshold = base_threshold - 0.5
         else:
-            adjusted_threshold = base_threshold - 1.5
-            
-        logger.info(f"시장: {market_condition}, 기준: {base_threshold} → {adjusted_threshold}")
+            adjusted_threshold = base_threshold
         
         # 7. 상세 로깅
         logger.info(f"\n{'='*60}")

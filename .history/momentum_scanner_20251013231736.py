@@ -21,7 +21,10 @@ class MomentumScanner:
             tickers = pyupbit.get_tickers(fiat="KRW")
             
             # 제외할 코인 (스테이블, 위험 코인)
-            exclude_list = ['KRW-USDT', 'KRW-USDC', 'KRW-BUSD', 'KRW-DAI']
+            exclude_list = [
+                'KRW-USDT', 'KRW-USDC', 'KRW-BUSD', 'KRW-DAI',  # 스테이블
+                'KRW-BTC', 'KRW-ETH', 'KRW-SOL',  # 이미 STABLE_PAIRS에 있음
+            ]
             
             candidates = []
             
