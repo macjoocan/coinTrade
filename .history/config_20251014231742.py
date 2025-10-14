@@ -272,12 +272,12 @@ STRATEGY_PRESETS = {
     'aggressive': {
         'entry_score_threshold': 6.0,
         'mtf_min_score': 6.0,
-        'mtf_min_consensus': 0.65,
-        'ml_min_probability': 0.65,
-        'signal_weights': {'technical': 0.30, 'mtf': 0.40, 'ml': 0.30},
-        'max_positions': 4,
-        'max_position_size': 0.25,
-        'stop_loss': 0.012,
+        'mtf_min_consensus': 0.60,
+        'ml_min_probability': 0.60,
+        'signal_weights': {'technical': 0.35, 'mtf': 0.30, 'ml': 0.35},
+        'max_positions': 6,
+        'max_position_size': 0.30,
+        'stop_loss': 0.015,
     }
 }
 

@@ -1,20 +1,10 @@
 {
-  "timestamp": "2025-10-14T00:03:40.568106",
+  "timestamp": "2025-10-14T23:09:58.577364",
   "positions": {
-    "DOGE": {
-      "entry_price": 311.0,
-      "quantity": 80.32588766,
-      "entry_time": "2025-10-13T23:49:41.803341"
-    },
-    "AERGO": {
-      "entry_price": 122.0,
-      "quantity": 117.15569899,
-      "entry_time": "2025-10-13T23:53:23.305944"
-    },
-    "NEWT": {
-      "entry_price": 234.0,
-      "quantity": 63.87094958,
-      "entry_time": "2025-10-13T23:42:26.564643"
+    "JST": {
+      "entry_price": 49.1,
+      "quantity": 313.33504680545826,
+      "entry_time": "2025-10-14T22:28:14.420998"
     }
   }
 }

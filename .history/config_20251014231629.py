@@ -252,32 +252,32 @@ STRATEGY_PRESETS = {
         'ml_min_probability': 0.75,
         'signal_weights': {'technical': 0.25, 'mtf': 0.45, 'ml': 0.30},
         'max_positions': 2,
-        'max_position_size': 0.15,
-        'stop_loss': 0.008,
-    },
-    
-    # 균형 전략 (기본)
-    'balanced': {
-        'entry_score_threshold': 6.5,
-        'mtf_min_score': 6.5,
-        'mtf_min_consensus': 0.70,
-        'ml_min_probability': 0.70,
-        'signal_weights': {'technical': 0.30, 'mtf': 0.40, 'ml': 0.30},
-        'max_positions': 3,
         'max_position_size': 0.20,
         'stop_loss': 0.010,
     },
     
-    # 공격적 전략
-    'aggressive': {
-        'entry_score_threshold': 6.0,
+    # 균형 전략 (기본)
+    'balanced': {
+        'entry_score_threshold': 5.5,
         'mtf_min_score': 6.0,
         'mtf_min_consensus': 0.65,
         'ml_min_probability': 0.65,
-        'signal_weights': {'technical': 0.30, 'mtf': 0.40, 'ml': 0.30},
-        'max_positions': 4,
+        'signal_weights': {'technical': 0.35, 'mtf': 0.35, 'ml': 0.30},
+        'max_positions': 5,
         'max_position_size': 0.25,
         'stop_loss': 0.012,
+    },
+    
+    # 공격적 전략
+    'aggressive': {
+        'entry_score_threshold': 5.0,
+        'mtf_min_score': 5.5,
+        'mtf_min_consensus': 0.60,
+        'ml_min_probability': 0.60,
+        'signal_weights': {'technical': 0.35, 'mtf': 0.30, 'ml': 0.35},
+        'max_positions': 6,
+        'max_position_size': 0.30,
+        'stop_loss': 0.015,
     }
 }
 

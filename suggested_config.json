@@ -1,0 +1,15 @@
+{
+  "ADVANCED_CONFIG": {
+    "entry_score_threshold": 6.0,
+    "comment": "진입 기준 상향 - 더 확실한 신호만"
+  },
+  "RISK_CONFIG": {
+    "stop_loss": 0.008,
+    "min_profit_target": 0.015,
+    "comment": "손절/익절 비율 최적화"
+  },
+  "STRATEGY_CONFIG": {
+    "min_hold_time": 3600,
+    "comment": "너무 빠른 청산 방지"
+  }
+}

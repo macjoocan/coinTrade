@@ -31,15 +31,15 @@ ADVANCED_CONFIG = {
     'min_score_for_small_position': 999,
     'aggressive_mode': False,        
     'use_consecutive_loss_check': True,
-    'max_consecutive_losses': 2,     # 2 → 3 (여유 추가)
+    'max_consecutive_losses': 3,     # 2 → 3 (여유 추가)
 }
 
 DYNAMIC_COIN_CONFIG = {
     'enabled': True,  # 동적 선택 활성화
-    'max_dynamic_coins': 2,  # 최대 3개 추가
-    'refresh_interval': 3600 * 6,  # 3시간마다 갱신
-    'min_score': 5,  # 최소 모멘텀 점수
-    'max_allocation': 0.15,  # 동적 코인당 최대 15%
+    'max_dynamic_coins': 3,  # 최대 3개 추가
+    'refresh_interval': 3600 * 3,  # 3시간마다 갱신
+    'min_score': 4,  # 최소 모멘텀 점수
+    'max_allocation': 0.18,  # 동적 코인당 최대 15%
 }
 
 # ==========================================
@@ -68,11 +68,11 @@ MTF_CONFIG = {
     },
     
     # 진입 기준
-    'min_score': 6.5,           # 최소 MTF 점수 (0~10)
-    'min_consensus': 0.70,      # 최소 합의 수준 (65%)
+    'min_score': 6.0,           # 최소 MTF 점수 (0~10)
+    'min_consensus': 0.65,      # 최소 합의 수준 (65%)
     'strong_signal_threshold': {
-        'score': 8.0,           # 강한 신호 점수
-        'consensus': 0.85       # 강한 신호 합의
+        'score': 7.5,           # 강한 신호 점수
+        'consensus': 0.80       # 강한 신호 합의
     },
     
     # 추세 필터
@@ -109,9 +109,9 @@ ML_CONFIG = {
     
     # 예측 기준
     'prediction': {
-        'min_buy_probability': 0.70,    # 최소 매수 확률 (65%)
-        'min_confidence': 0.65,         # 최소 신뢰도 (60%)
-        'strong_signal_probability': 0.80,  # 강한 신호 확률
+        'min_buy_probability': 0.65,    # 최소 매수 확률 (65%)
+        'min_confidence': 0.60,         # 최소 신뢰도 (60%)
+        'strong_signal_probability': 0.75,  # 강한 신호 확률
     },
     
     # 성능 임계값
@@ -157,8 +157,8 @@ SIGNAL_INTEGRATION_CONFIG = {
     
     # 신호별 가중치 (합계 1.0)
     'weights': {
-        'technical': 0.30,   # 기존 기술적 분석
-        'mtf': 0.40,         # 멀티 타임프레임
+        'technical': 0.35,   # 기존 기술적 분석
+        'mtf': 0.35,         # 멀티 타임프레임
         'ml': 0.30           # 머신러닝
     },
     
@@ -190,14 +190,14 @@ SIGNAL_INTEGRATION_CONFIG = {
     
     # 시장 상황별 조정
     'market_adjustment': {
-        'bullish': -1.0,    # 강세장: 기준 완화
-        'neutral': -0.5,     # 중립: 기준 유지
-        'bearish': +2.5,    # 약세장: 기준 강화
+        'bullish': -0.5,    # 강세장: 기준 완화
+        'neutral': 0.0,     # 중립: 기준 유지
+        'bearish': +1.0,    # 약세장: 기준 강화
     },
     
     # 신호 무시 조건
     'ignore_signals': {
-        'on_consecutive_losses': 2,     # 연속 3회 손실 시 모든 신호 무시
+        'on_consecutive_losses': 3,     # 연속 3회 손실 시 모든 신호 무시
         'on_daily_loss_exceed': 0.015,  # 일일 1.5% 손실 시 무시
         'ignore_weak_signals': True,    # 약한 신호 자동 무시
     }
@@ -246,38 +246,38 @@ DASHBOARD_CONFIG = {
 STRATEGY_PRESETS = {
     # 보수적 전략
     'conservative': {
-        'entry_score_threshold': 7.5,
-        'mtf_min_score': 7.0,
-        'mtf_min_consensus': 0.80,
-        'ml_min_probability': 0.75,
-        'signal_weights': {'technical': 0.25, 'mtf': 0.45, 'ml': 0.30},
-        'max_positions': 2,
-        'max_position_size': 0.15,
-        'stop_loss': 0.008,
-    },
-    
-    # 균형 전략 (기본)
-    'balanced': {
         'entry_score_threshold': 6.5,
-        'mtf_min_score': 6.5,
-        'mtf_min_consensus': 0.70,
+        'mtf_min_score': 7.0,
+        'mtf_min_consensus': 0.75,
         'ml_min_probability': 0.70,
-        'signal_weights': {'technical': 0.30, 'mtf': 0.40, 'ml': 0.30},
-        'max_positions': 3,
+        'signal_weights': {'technical': 0.3, 'mtf': 0.4, 'ml': 0.3},
+        'max_positions': 2,
         'max_position_size': 0.20,
         'stop_loss': 0.010,
     },
     
-    # 공격적 전략
-    'aggressive': {
-        'entry_score_threshold': 6.0,
+    # 균형 전략 (기본)
+    'balanced': {
+        'entry_score_threshold': 5.5,
         'mtf_min_score': 6.0,
         'mtf_min_consensus': 0.65,
         'ml_min_probability': 0.65,
-        'signal_weights': {'technical': 0.30, 'mtf': 0.40, 'ml': 0.30},
-        'max_positions': 4,
+        'signal_weights': {'technical': 0.35, 'mtf': 0.35, 'ml': 0.30},
+        'max_positions': 5,
         'max_position_size': 0.25,
         'stop_loss': 0.012,
+    },
+    
+    # 공격적 전략
+    'aggressive': {
+        'entry_score_threshold': 5.0,
+        'mtf_min_score': 5.5,
+        'mtf_min_consensus': 0.60,
+        'ml_min_probability': 0.60,
+        'signal_weights': {'technical': 0.35, 'mtf': 0.30, 'ml': 0.35},
+        'max_positions': 6,
+        'max_position_size': 0.30,
+        'stop_loss': 0.015,
     }
 }
 
