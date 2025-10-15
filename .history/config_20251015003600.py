@@ -288,7 +288,7 @@ PYRAMIDING_CONFIG = {
     'enabled': True,  # ⚠️ 처음엔 False로 시작 추천
     
     # 기본 조건
-    'max_pyramids': 3,              # 최대 1회만 (총 2번 매수)
+    'max_pyramids': 1,              # 최대 1회만 (총 2번 매수)
     'min_score_increase': 1.0,      # 이전보다 1.0점 높아야
     'min_profit_for_pyramid': 0.02, # +2% 수익 상태에서만 ⚠️
     

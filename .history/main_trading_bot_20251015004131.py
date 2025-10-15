@@ -46,7 +46,7 @@ class TradingBot:
         self.upbit = pyupbit.Upbit(access_key, secret_key)
         self.balance = self.get_balance()
         
-        # 추매 매니저 초기화
+        # 추매 매니저 추가
         self.pyramid_manager = PyramidingManager()
 
         # 전략 및 리스크 매니저 초기화
@@ -417,12 +417,39 @@ class TradingBot:
                 if not indicators:
                     continue
                 
-                # 매수 시도
-                self.execute_trade(symbol, 'buy', indicators['price'])
+                current_price = indicators['price']
+                
+                # ✅ 기존 포지션 있는지 확인
+                if symbol in self.risk_manager.positions:
+                    # 추매 체크
+                    can_enter, score_details = self.strategy.should_enter_position(
+                        symbol, indicators
+                    )
+                    
+                    if can_enter:
+                        # 점수 추출 (로직에 따라 조정)
+                        current_score = 7.0  # 실제로는 계산된 점수 사용
+                        
+                        # 추매 가능 여부
+                        can_pyramid, pyramid_reason = self.pyramid_manager.can_pyramid(
+                            symbol,
+                            current_score,
+                            current_price,
+                            self.risk_manager.positions,
+                            market
+                        )
+                        
+                        if can_pyramid:
+                            # 추매 실행
+                            self.execute_pyramid(symbol, indicators, current_score)
+                
+                else:
+                    # 신규 진입
+                    self.execute_trade(symbol, 'buy', indicators['price'])
                 
             except Exception as e:
                 logger.error(f"{symbol} 분석 실패: {e}")
-                continue
+                continue                
     
     def print_status(self):  # ← 이 부분이 TradingBot 클래스 안에 있어야 함
         """현재 상태 출력"""

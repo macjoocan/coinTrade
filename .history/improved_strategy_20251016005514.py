@@ -252,22 +252,14 @@ class ImprovedStrategy:
         market_condition = self.market_analyzer.analyze_market(TRADING_PAIRS)
         base_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
         
-        # ✅ Config에서 조정값 읽기 (하드코딩 제거)
-        from config import SIGNAL_INTEGRATION_CONFIG
-        market_adjustments = SIGNAL_INTEGRATION_CONFIG.get('market_adjustment', {
-            'bullish': -0.5,
-            'neutral': 0.0,
-            'bearish': +1.0
-        })
-        
-        # Config 기반 조정
-        adjustment = market_adjustments.get(market_condition, 0.0)
-        adjusted_threshold = base_threshold + adjustment
-        
-        # 로깅
-        logger.info(f"시장: {market_condition}, "
-                    f"기준: {base_threshold:.1f} → {adjusted_threshold:.1f} "
-                    f"(조정: {adjustment:+.1f})")
+        if market_condition == 'bearish':
+            adjusted_threshold = base_threshold + 0.5
+        elif market_condition == 'bullish':
+            adjusted_threshold = base_threshold - 1.0
+        else:
+            adjusted_threshold = base_threshold - 1.5
+            
+        logger.info(f"시장: {market_condition}, 기준: {base_threshold} → {adjusted_threshold}")
 
         # ⭐ 고변동성 체크 추가 (50% 승률이면 피하기)
         volatility = indicators.get('volatility', 0)

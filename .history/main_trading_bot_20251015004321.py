@@ -46,7 +46,7 @@ class TradingBot:
         self.upbit = pyupbit.Upbit(access_key, secret_key)
         self.balance = self.get_balance()
         
-        # 추매 매니저 초기화
+        # 추매 매니저 추가
         self.pyramid_manager = PyramidingManager()
 
         # 전략 및 리스크 매니저 초기화

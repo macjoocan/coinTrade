@@ -15,6 +15,7 @@ from daily_summary import DailySummary
 from momentum_scanner_improved import ImprovedMomentumScanner
 from partial_exit_manager import PartialExitManager
 from pyramiding_manager import PyramidingManager
+self.pyramid_manager = PyramidingManager()
         
 
 from config import (
@@ -45,9 +46,6 @@ class TradingBot:
     def __init__(self, access_key, secret_key):
         self.upbit = pyupbit.Upbit(access_key, secret_key)
         self.balance = self.get_balance()
-        
-        # 추매 매니저 초기화
-        self.pyramid_manager = PyramidingManager()
 
         # 전략 및 리스크 매니저 초기화
         self.strategy = ImprovedStrategy()
