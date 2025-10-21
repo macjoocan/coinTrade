@@ -98,5 +98,50 @@
     "max_win": 0,
     "max_loss": 0,
     "traded_symbols": []
+  },
+  "2025-10-17": {
+    "date": "2025-10-17",
+    "total_trades": 0,
+    "buy_count": 0,
+    "sell_count": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "max_win": 0,
+    "max_loss": 0,
+    "traded_symbols": []
+  },
+  "2025-10-18": {
+    "date": "2025-10-18",
+    "total_trades": 0,
+    "buy_count": 0,
+    "sell_count": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "max_win": 0,
+    "max_loss": 0,
+    "traded_symbols": []
+  },
+  "2025-10-19": {
+    "date": "2025-10-19",
+    "total_trades": 0,
+    "buy_count": 0,
+    "sell_count": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "max_win": 0,
+    "max_loss": 0,
+    "traded_symbols": []
   }
 }
