@@ -1,7 +1,7 @@
 STRATEGY_CONFIG = {
-    'min_profit_target': 0.010,
+    'min_profit_target': 0.015,
     'max_trades_per_day': 30,        
-    'min_hold_time': 900,
+    'min_hold_time': 1800,
 }
 
 RISK_CONFIG = {
@@ -406,7 +406,7 @@ DEBUG_CONFIG = {
 }
 
 # 기본 안정 코인
-STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'XLM']
+STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA']
 
 # 거래 대상
 TRADING_PAIRS = STABLE_PAIRS

@@ -14,24 +14,6 @@ logger = logging.getLogger(__name__)
 
 class RiskManager:
     def __init__(self, initial_balance):
-        balance_file = "initial_balance.txt"
-        
-        if os.path.exists(balance_file):
-            try:
-                with open(balance_file, 'r') as f:
-                    self.initial_balance = float(f.read().strip())
-                    logger.info(f"✅ 저장된 초기 자본 불러옴: {self.initial_balance:,.0f}원")
-            except Exception as e:
-                logger.error(f"⚠️ 파일 읽기 실패: {e}")
-                self.initial_balance = initial_balance
-        else:
-            # ✅ 간소화된 로그
-            self.initial_balance = initial_balance
-            self.need_total_balance_update = True
-            
-            logger.info("🔄 초기 자본 설정 준비 중... (총 자산 계산 예정)")
-            # 여기서는 자세한 로그 출력 안함!
-                
         self.initial_balance = initial_balance
         self.current_balance = initial_balance
         self.reset_to_current_balance = True  # 첫 실행 시 현재 잔고로 재설정        
@@ -85,7 +67,7 @@ class RiskManager:
             return True, "일일 손실 한도 도달"
         
         # 자본 손실 체크
-        if self.current_balance < self.initial_balance * 0.93:
+        if self.current_balance < self.initial_balance * 0.95:
             return True, "자본 5% 손실 - 보호 모드"
         
         return False, "정상"

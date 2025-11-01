@@ -94,15 +94,52 @@ class ImprovedStrategy:
         
         elapsed_time = time.time() - self.position_entry_time[symbol]
         return elapsed_time >= self.min_hold_time
+
+    def get_cooldown_time(self, symbol):
+        """스마트 쿨다운 계산"""
+        
+        if not self.smart_cooldown:
+            return COOLDOWN_PERIOD  # 기존 방식
+        
+        # 마지막 거래 확인
+        last_trade = self.get_last_trade(symbol)
+        
+        if not last_trade:
+            return 0
+        
+        # 1. 연속 수익 중? → 쿨다운 없음!
+        if self.consecutive_wins >= 2:
+            logger.info(f"{symbol}: 🔥 연승 중 - 쿨다운 생략!")
+            return 0
+        
+        # 2. 수익 거래였나?
+        if last_trade.get('pnl', 0) > 0:
+            logger.info(f"{symbol}: ✅ 수익 후 짧은 쿨다운 (5분)")
+            return self.win_cooldown  # 5분
+        
+        # 3. 손실 거래였나?
+        else:
+            logger.info(f"{symbol}: ❌ 손실 후 긴 쿨다운 (1시간)")
+            return self.loss_cooldown  # 1시간
     
     def is_in_cooldown(self, symbol):
-        """종목별 쿨다운 체크"""
-        if symbol not in self.trade_cooldown:
+        """쿨다운 체크"""
+        if symbol not in self.last_trade_time:
             return False
         
-        cooldown_time = 180  # 3분
-        elapsed = time.time() - self.trade_cooldown[symbol]
-        return elapsed < cooldown_time
+        cooldown_time = self.get_cooldown_time(symbol)
+        
+        if cooldown_time == 0:
+            return False  # 쿨다운 없음
+        
+        elapsed = time.time() - self.last_trade_time[symbol]
+        remaining = cooldown_time - elapsed
+        
+        if remaining > 0:
+            logger.info(f"{symbol}: 쿨다운 중 ({remaining/60:.1f}분 남음)")
+            return True
+        
+        return False
     
     def calculate_entry_score(self, indicators):
         """✅ 개선된 진입 점수 계산 - 상승장 대응"""

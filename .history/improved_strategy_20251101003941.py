@@ -100,7 +100,7 @@ class ImprovedStrategy:
         if symbol not in self.trade_cooldown:
             return False
         
-        cooldown_time = 180  # 3분
+        cooldown_time = 1800  # 30분
         elapsed = time.time() - self.trade_cooldown[symbol]
         return elapsed < cooldown_time
     

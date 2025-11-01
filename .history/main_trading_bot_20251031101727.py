@@ -60,32 +60,8 @@ class TradingBot:
         
         # 전략 및 리스크 매니저 초기화
         self.strategy = ImprovedStrategy()
-        self.risk_manager = RiskManager(self.balance)
-        
-        if hasattr(self.risk_manager, 'need_total_balance_update') and \
-           self.risk_manager.need_total_balance_update:
-            
-            total_balance = self.get_accurate_balance()
-            self.risk_manager.initial_balance = total_balance
-            self.risk_manager.need_total_balance_update = False
-            
-            logger.info("")
-            logger.info("="*60)
-            logger.info("✅ 총 자산 계산 완료!")
-            logger.info(f"📊 KRW 잔고: {self.balance:,.0f}원")
-            logger.info(f"💰 총 자산(코인 포함): {total_balance:,.0f}원")
-            logger.info(f"🎉 초기 자본 최종 설정: {total_balance:,.0f}원")
-            logger.info("💡 과거 손실이 무시됩니다!")
-            logger.info("="*60)
-            logger.info("") 
-            # 파일에 저장
-            try:
-                with open("initial_balance.txt", 'w') as f:
-                    f.write(str(total_balance))
-                logger.info("✅ initial_balance.txt 파일 저장 완료")
-            except Exception as e:
-                logger.error(f"⚠️ 파일 저장 실패: {e}")
-            
+        self.risk_manager = RiskManager(self.balance) 
+                
         # 동적 모멘텀 스캐너 초기화
         self.momentum_scanner = ImprovedMomentumScanner()
         self.dynamic_coins = []

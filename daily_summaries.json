@@ -69,5 +69,41 @@
     "max_win": 0,
     "max_loss": 0,
     "traded_symbols": []
+  },
+  "2025-10-30": {
+    "date": "2025-10-30",
+    "total_trades": 2,
+    "buy_count": 1,
+    "sell_count": 1,
+    "winning_trades": 0,
+    "losing_trades": 1,
+    "total_pnl": -615.3137599022084,
+    "win_rate": 0.0,
+    "avg_win": 0,
+    "avg_loss": -615.3137599022084,
+    "max_win": 0,
+    "max_loss": -615.3137599022084,
+    "traded_symbols": [
+      "ETH",
+      "DOGE"
+    ]
+  },
+  "2025-10-31": {
+    "date": "2025-10-31",
+    "total_trades": 3,
+    "buy_count": 1,
+    "sell_count": 2,
+    "winning_trades": 2,
+    "losing_trades": 0,
+    "total_pnl": 1017.4781057952059,
+    "win_rate": 100.0,
+    "avg_win": 508.73905289760296,
+    "avg_loss": 0,
+    "max_win": 576.4828064698668,
+    "max_loss": 0,
+    "traded_symbols": [
+      "SOL",
+      "XRP"
+    ]
   }
 }

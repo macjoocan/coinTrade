@@ -19,7 +19,8 @@ from config import (
     ADVANCED_CONFIG,
     MTF_CONFIG, 
     ML_CONFIG, 
-    SIGNAL_INTEGRATION_CONFIG    
+    SIGNAL_INTEGRATION_CONFIG,
+    COOLDOWN_PERIOD    
 )
 
 logger = logging.getLogger(__name__)
@@ -96,13 +97,23 @@ class ImprovedStrategy:
         return elapsed_time >= self.min_hold_time
     
     def is_in_cooldown(self, symbol):
-        """종목별 쿨다운 체크"""
-        if symbol not in self.trade_cooldown:
+        """쿨다운 체크"""
+        if symbol not in self.last_trade_time:
             return False
         
-        cooldown_time = 180  # 3분
-        elapsed = time.time() - self.trade_cooldown[symbol]
-        return elapsed < cooldown_time
+        cooldown_time = self.get_cooldown_time(symbol)
+        
+        if cooldown_time == 0:
+            return False  # 쿨다운 없음
+        
+        elapsed = time.time() - self.last_trade_time[symbol]
+        remaining = cooldown_time - elapsed
+        
+        if remaining > 0:
+            logger.info(f"{symbol}: 쿨다운 중 ({remaining/60:.1f}분 남음)")
+            return True
+        
+        return False
     
     def calculate_entry_score(self, indicators):
         """✅ 개선된 진입 점수 계산 - 상승장 대응"""

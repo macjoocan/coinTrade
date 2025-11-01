@@ -406,7 +406,7 @@ DEBUG_CONFIG = {
 }
 
 # 기본 안정 코인
-STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'XLM']
+STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA']
 
 # 거래 대상
 TRADING_PAIRS = STABLE_PAIRS

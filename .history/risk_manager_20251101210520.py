@@ -17,6 +17,7 @@ class RiskManager:
         balance_file = "initial_balance.txt"
         
         if os.path.exists(balance_file):
+            # 파일 있음 → 파일에서 불러오기
             try:
                 with open(balance_file, 'r') as f:
                     self.initial_balance = float(f.read().strip())
@@ -25,12 +26,25 @@ class RiskManager:
                 logger.error(f"⚠️ 파일 읽기 실패: {e}")
                 self.initial_balance = initial_balance
         else:
-            # ✅ 간소화된 로그
+            # 파일 없음 → 현재 잔고로 새 출발!
             self.initial_balance = initial_balance
-            self.need_total_balance_update = True
             
-            logger.info("🔄 초기 자본 설정 준비 중... (총 자산 계산 예정)")
-            # 여기서는 자세한 로그 출력 안함!
+            logger.info("")
+            logger.info("="*60)
+            logger.info("🔄 초기 자본 자동 설정 (새 출발!)")
+            logger.info(f"📊 현재 잔고를 초기 자본으로 설정: {initial_balance:,.0f}원")
+            logger.info("💡 과거 손실이 무시됩니다!")
+            logger.info("🎉 보호 모드 해제!")
+            logger.info("="*60)
+            logger.info("")
+            
+            # 파일에 저장
+            try:
+                with open(balance_file, 'w') as f:
+                    f.write(str(initial_balance))
+                logger.info(f"✅ {balance_file} 파일 생성 완료")
+            except Exception as e:
+                logger.error(f"⚠️ 파일 저장 실패: {e}")
                 
         self.initial_balance = initial_balance
         self.current_balance = initial_balance

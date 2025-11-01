@@ -78,14 +78,7 @@ class TradingBot:
             logger.info("💡 과거 손실이 무시됩니다!")
             logger.info("="*60)
             logger.info("") 
-            # 파일에 저장
-            try:
-                with open("initial_balance.txt", 'w') as f:
-                    f.write(str(total_balance))
-                logger.info("✅ initial_balance.txt 파일 저장 완료")
-            except Exception as e:
-                logger.error(f"⚠️ 파일 저장 실패: {e}")
-            
+                
         # 동적 모멘텀 스캐너 초기화
         self.momentum_scanner = ImprovedMomentumScanner()
         self.dynamic_coins = []

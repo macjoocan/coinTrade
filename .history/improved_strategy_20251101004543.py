@@ -94,13 +94,15 @@ class ImprovedStrategy:
         
         elapsed_time = time.time() - self.position_entry_time[symbol]
         return elapsed_time >= self.min_hold_time
+
+
     
     def is_in_cooldown(self, symbol):
         """종목별 쿨다운 체크"""
         if symbol not in self.trade_cooldown:
             return False
         
-        cooldown_time = 180  # 3분
+        cooldown_time = 1800  # 30분
         elapsed = time.time() - self.trade_cooldown[symbol]
         return elapsed < cooldown_time
     
