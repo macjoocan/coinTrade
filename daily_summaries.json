@@ -105,5 +105,56 @@
       "SOL",
       "XRP"
     ]
+  },
+  "2025-11-02": {
+    "date": "2025-11-02",
+    "total_trades": 2,
+    "buy_count": 1,
+    "sell_count": 1,
+    "winning_trades": 1,
+    "losing_trades": 0,
+    "total_pnl": 413.4472393099022,
+    "win_rate": 100.0,
+    "avg_win": 413.4472393099022,
+    "avg_loss": 0,
+    "max_win": 413.4472393099022,
+    "max_loss": 0,
+    "traded_symbols": [
+      "BIO",
+      "NEWT"
+    ]
+  },
+  "2025-11-03": {
+    "date": "2025-11-03",
+    "total_trades": 2,
+    "buy_count": 2,
+    "sell_count": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "max_win": 0,
+    "max_loss": 0,
+    "traded_symbols": [
+      "ADA",
+      "XLM"
+    ]
+  },
+  "2025-11-05": {
+    "date": "2025-11-05",
+    "total_trades": 0,
+    "buy_count": 0,
+    "sell_count": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl": 0,
+    "win_rate": 0,
+    "avg_win": 0,
+    "avg_loss": 0,
+    "max_win": 0,
+    "max_loss": 0,
+    "traded_symbols": []
   }
 }

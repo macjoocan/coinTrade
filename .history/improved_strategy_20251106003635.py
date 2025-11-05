@@ -211,7 +211,7 @@ class ImprovedStrategy:
         
         # ✅ 4. 과매수 필터 (RSI 70 이상이면 진입 금지)
         rsi = indicators.get('rsi', 50)
-        if rsi >= 75:
+        if rsi >= 70:
             return False, f"RSI 과매수 ({rsi:.1f}) - 조정 대기"
         
         # 5. 멀티 신호 분석

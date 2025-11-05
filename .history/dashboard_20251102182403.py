@@ -158,15 +158,6 @@ class TradingDashboard:
         # ✅ 거래 기록 매니저 추가
         self.trade_history = TradeHistoryManager()
         
-        # ✅✅✅ 캐시 추가 ✅✅✅
-        self.recent_trades_cache = []
-        self.last_trades_update = datetime.now() - timedelta(seconds=60)
-        self.trades_cache_interval = 30  # 30초
-        
-        self.stats_cache = {'24h': None, '7d': None, '30d': None}
-        self.last_stats_update = datetime.now() - timedelta(minutes=5)
-        self.stats_cache_interval = 300  # 5분
-        
         self.api_calls = deque(maxlen=100)
         self.dynamic_coins = []
         self.setup_layout()
@@ -504,18 +495,9 @@ class TradingDashboard:
         )
     
     def get_recent_trades_panel(self):
-        """✅ 최근 거래 내역 패널 - 캐시 적용"""
+        """✅ 최근 거래 내역 패널"""
         try:
-            # ✅ 캐시 체크
-            now = datetime.now()
-            elapsed = (now - self.last_trades_update).total_seconds()
-            
-            # 30초마다만 업데이트
-            if elapsed >= self.trades_cache_interval or not self.recent_trades_cache:
-                self.recent_trades_cache = self.trade_history.get_recent_trades(limit=5)
-                self.last_trades_update = now
-            
-            trades = self.recent_trades_cache
+            trades = self.trade_history.get_recent_trades(limit=5)
             
             if not trades:
                 return Panel(
@@ -532,6 +514,7 @@ class TradingDashboard:
             
             for trade in trades:
                 try:
+                    # ✅ timestamp가 문자열인지 datetime 객체인지 확인
                     timestamp = trade['timestamp']
                     if isinstance(timestamp, str):
                         time_obj = datetime.fromisoformat(timestamp)
@@ -552,6 +535,8 @@ class TradingDashboard:
                         f"[{pnl_color}]{pnl_rate:+.1%}[/{pnl_color}]"
                     )
                 except Exception as e:
+                    # ✅ 에러 로그 추가
+                    console.warning(f"거래 표시 실패: {trade.get('symbol', 'UNKNOWN')} - {str(e)}")
                     continue
             
             return Panel(table, title="📜 Recent Trades", border_style="blue")
@@ -568,19 +553,8 @@ class TradingDashboard:
         return self.trade_history.get_period_stats(days)
     
     def get_stats_panel(self, days, title):
-        """✅ 통계 패널 - 캐시 적용"""
-        # ✅ 캐시 체크
-        now = datetime.now()
-        elapsed = (now - self.last_stats_update).total_seconds()
-        
-        cache_key = '24h' if days == 1 else f'{days}d'
-        
-        # 5분마다만 업데이트
-        if elapsed >= self.stats_cache_interval or self.stats_cache[cache_key] is None:
-            self.stats_cache[cache_key] = self.calculate_period_stats(days)
-            self.last_stats_update = now
-        
-        stats = self.stats_cache[cache_key]
+        """✅ 향상된 통계 패널"""
+        stats = self.calculate_period_stats(days)
         
         table = Table(show_header=False, box=None, padding=(0, 1), expand=True)
         table.add_column("Item", style="cyan", width=12)

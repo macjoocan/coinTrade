@@ -361,11 +361,11 @@ ADAPTIVE_PRESET_CONFIG = {
         'low_volatility': 0.02,       # 2% 이하 → aggressive 고려
         
         'high_win_rate': 0.60,        # 65% 이상 → aggressive 고려
-        'medium_win_rate': 0.45,      # 50-65% → balanced
-        'low_win_rate': 0.45,         # 50% 이하 → conservative
+        'medium_win_rate': 0.50,      # 50-65% → balanced
+        'low_win_rate': 0.50,         # 50% 이하 → conservative
         
-        'consecutive_losses': 2,      # 3회 연속 손실 → conservative
-        'consecutive_wins': 4,        # 3회 연속 수익 → aggressive 고려
+        'consecutive_losses': 3,      # 3회 연속 손실 → conservative
+        'consecutive_wins': 3,        # 3회 연속 수익 → aggressive 고려
     },
     
     # 전환 조건

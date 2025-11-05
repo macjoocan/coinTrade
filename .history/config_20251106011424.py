@@ -351,8 +351,8 @@ ADAPTIVE_PRESET_CONFIG = {
     'enabled': True,  # ✅ True로 변경하면 자동 전환 활성화
     
     # 전환 주기
-    'check_interval': 3600,        # 1시간마다 체크
-    'min_switch_interval': 7200,  # 최소 6시간 간격 (너무 자주 전환 방지)
+    'check_interval': 1800,        # 1시간마다 체크
+    'min_switch_interval': 1800,  # 최소 6시간 간격 (너무 자주 전환 방지)
     
     # 임계값 설정
     'thresholds': {
@@ -360,12 +360,12 @@ ADAPTIVE_PRESET_CONFIG = {
         'medium_volatility': 0.02,    # 2-4% → balanced
         'low_volatility': 0.02,       # 2% 이하 → aggressive 고려
         
-        'high_win_rate': 0.60,        # 65% 이상 → aggressive 고려
-        'medium_win_rate': 0.45,      # 50-65% → balanced
-        'low_win_rate': 0.45,         # 50% 이하 → conservative
+        'high_win_rate': 0.65,        # 65% 이상 → aggressive 고려
+        'medium_win_rate': 0.50,      # 50-65% → balanced
+        'low_win_rate': 0.50,         # 50% 이하 → conservative
         
-        'consecutive_losses': 2,      # 3회 연속 손실 → conservative
-        'consecutive_wins': 4,        # 3회 연속 수익 → aggressive 고려
+        'consecutive_losses': 3,      # 3회 연속 손실 → conservative
+        'consecutive_wins': 3,        # 3회 연속 수익 → aggressive 고려
     },
     
     # 전환 조건

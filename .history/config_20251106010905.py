@@ -1,13 +1,13 @@
 STRATEGY_CONFIG = {
     'min_profit_target': 0.020,
-    'max_trades_per_day': 20,        
+    'max_trades_per_day': 30,        
     'min_hold_time': 900,
 }
 
 RISK_CONFIG = {
     'max_position_size': 0.20,
     'stop_loss': 0.010,
-    'daily_loss_limit': 0.03,        
+    'daily_loss_limit': 0.015,        
     'max_positions': 3,              
 }
 
@@ -27,17 +27,17 @@ EXIT_PRIORITY = {
 }
 
 ADVANCED_CONFIG = {
-    'entry_score_threshold': 4.2,
+    'entry_score_threshold': 3.0,
     'min_score_for_small_position': 999,
     'aggressive_mode': False,        
     'use_consecutive_loss_check': True,
-    'max_consecutive_losses': 3,
+    'max_consecutive_losses': 2,
 }
 
 DYNAMIC_COIN_CONFIG = {
     'enabled': True,
-    'max_dynamic_coins': 3,
-    'refresh_interval': 3600 * 2,
+    'max_dynamic_coins': 2,
+    'refresh_interval': 3600 * 6,
     'min_score': 5,
     'max_allocation': 0.15,
 }
@@ -66,8 +66,8 @@ MTF_CONFIG = {
         }
     },
     
-    'min_score': 6.0,
-    'min_consensus': 0.70,
+    'min_score': 5.5,
+    'min_consensus': 0.65,
     'strong_signal_threshold': {
         'score': 8.0,
         'consensus': 0.85
@@ -94,14 +94,14 @@ ML_CONFIG = {
     'training': {
         'lookback_hours': 168,
         'prediction_horizon': 6,
-        'min_profit_threshold': 0.02,
+        'min_profit_threshold': 0.015,
         'auto_retrain_days': 7,
         'min_samples': 200,
     },
     
     'prediction': {
-        'min_buy_probability': 0.30,
-        'min_confidence': 0.60,
+        'min_buy_probability': 0.20,
+        'min_confidence': 0.50,
         'strong_signal_probability': 0.80,
     },
     
@@ -245,7 +245,7 @@ AVERAGING_DOWN_CONFIG = {
 STRATEGY_PRESETS = {
     # 📘 보수적 전략 - 안정적인 시장, 신중한 진입
     'conservative': {
-        'entry_score_threshold': 4.5,       # ✅ 높은 진입 기준 (유지)
+        'entry_score_threshold': 4.2,       # ✅ 높은 진입 기준 (유지)
         'mtf_min_score': 7.0,
         'mtf_min_consensus': 0.80,
         'ml_min_probability': 0.75,
@@ -264,7 +264,7 @@ STRATEGY_PRESETS = {
     
     # ⚖️ 균형 전략 - 일반적인 상황 (현재 ML 약함 대응)
     'balanced': {
-        'entry_score_threshold': 4.2,       # ✅ 4.0 → 6.5 (대폭 상향!)
+        'entry_score_threshold': 3.9,       # ✅ 4.0 → 6.5 (대폭 상향!)
         'mtf_min_score': 6.0,               # ✅ 5.5 → 6.0
         'mtf_min_consensus': 0.70,          # ✅ 0.65 → 0.70
         'ml_min_probability': 0.25,         # ✅ 0.20 → 0.25
@@ -283,7 +283,7 @@ STRATEGY_PRESETS = {
     
     # 📕 공격적 전략 - 기회가 많은 시장, 적극적 진입
     'aggressive': {
-        'entry_score_threshold': 3.8,       # ✅ 2.5 → 5.5 (대폭 상향!)
+        'entry_score_threshold': 3.5,       # ✅ 2.5 → 5.5 (대폭 상향!)
         'mtf_min_score': 5.5,               # ✅ 5.0 → 5.5
         'mtf_min_consensus': 0.65,          # ✅ 0.60 → 0.65
         'ml_min_probability': 0.25,         # ✅ 0.20 → 0.25
@@ -351,8 +351,8 @@ ADAPTIVE_PRESET_CONFIG = {
     'enabled': True,  # ✅ True로 변경하면 자동 전환 활성화
     
     # 전환 주기
-    'check_interval': 3600,        # 1시간마다 체크
-    'min_switch_interval': 7200,  # 최소 6시간 간격 (너무 자주 전환 방지)
+    'check_interval': 1800,        # 1시간마다 체크
+    'min_switch_interval': 1800,  # 최소 6시간 간격 (너무 자주 전환 방지)
     
     # 임계값 설정
     'thresholds': {
@@ -360,12 +360,12 @@ ADAPTIVE_PRESET_CONFIG = {
         'medium_volatility': 0.02,    # 2-4% → balanced
         'low_volatility': 0.02,       # 2% 이하 → aggressive 고려
         
-        'high_win_rate': 0.60,        # 65% 이상 → aggressive 고려
-        'medium_win_rate': 0.45,      # 50-65% → balanced
-        'low_win_rate': 0.45,         # 50% 이하 → conservative
+        'high_win_rate': 0.65,        # 65% 이상 → aggressive 고려
+        'medium_win_rate': 0.50,      # 50-65% → balanced
+        'low_win_rate': 0.50,         # 50% 이하 → conservative
         
-        'consecutive_losses': 2,      # 3회 연속 손실 → conservative
-        'consecutive_wins': 4,        # 3회 연속 수익 → aggressive 고려
+        'consecutive_losses': 3,      # 3회 연속 손실 → conservative
+        'consecutive_wins': 3,        # 3회 연속 수익 → aggressive 고려
     },
     
     # 전환 조건
@@ -375,7 +375,7 @@ ADAPTIVE_PRESET_CONFIG = {
     # 강제 전환 조건 (즉시 전환)
     'force_conservative_on': {
         'consecutive_losses': 2,      # 4회 연속 손실
-        'daily_loss_rate': 0.03,      # 일일 3% 손실
+        'daily_loss_rate': 0.015,      # 일일 3% 손실
         'high_volatility': 0.05,      # 5% 이상 변동성
     },
     

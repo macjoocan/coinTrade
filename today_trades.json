@@ -1,28 +1,28 @@
 [
   {
-    "timestamp": "2025-11-01T20:53:43.799755",
-    "symbol": "ETH",
-    "type": "buy",
-    "price": 5777115.308964776,
-    "quantity": 0.00430389,
-    "pnl": 0,
-    "pnl_rate": 0
+    "timestamp": "2025-11-06T01:22:38.203691",
+    "symbol": "SOL",
+    "type": "sell",
+    "price": 237400.0,
+    "quantity": 0.09083389,
+    "pnl": -216.18947320491134,
+    "pnl_rate": -0.00992598416355819
   },
   {
-    "timestamp": "2025-11-01T20:53:50.753741",
+    "timestamp": "2025-11-06T01:23:54.950566",
     "symbol": "DOGE",
     "type": "buy",
-    "price": 278.8605000160676,
-    "quantity": 85.44612406,
+    "price": 248.8755000597251,
+    "quantity": 33.57324572,
     "pnl": 0,
     "pnl_rate": 0
   },
   {
-    "timestamp": "2025-11-01T20:53:56.056804",
-    "symbol": "XLM",
+    "timestamp": "2025-11-06T01:26:16.549268",
+    "symbol": "SOL",
     "type": "buy",
-    "price": 456.7715000833992,
-    "quantity": 49.99050495,
+    "price": 238180.91745939237,
+    "quantity": 0.03449575,
     "pnl": 0,
     "pnl_rate": 0
   }

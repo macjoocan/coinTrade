@@ -568,19 +568,8 @@ class TradingDashboard:
         return self.trade_history.get_period_stats(days)
     
     def get_stats_panel(self, days, title):
-        """✅ 통계 패널 - 캐시 적용"""
-        # ✅ 캐시 체크
-        now = datetime.now()
-        elapsed = (now - self.last_stats_update).total_seconds()
-        
-        cache_key = '24h' if days == 1 else f'{days}d'
-        
-        # 5분마다만 업데이트
-        if elapsed >= self.stats_cache_interval or self.stats_cache[cache_key] is None:
-            self.stats_cache[cache_key] = self.calculate_period_stats(days)
-            self.last_stats_update = now
-        
-        stats = self.stats_cache[cache_key]
+        """✅ 향상된 통계 패널"""
+        stats = self.calculate_period_stats(days)
         
         table = Table(show_header=False, box=None, padding=(0, 1), expand=True)
         table.add_column("Item", style="cyan", width=12)

@@ -135,6 +135,40 @@ class TradingBot:
         
         # 2. 거래소와 동기화
         recovered = self.position_recovery.sync_with_exchange(saved_positions)
+            # ✅ 기록되지 않은 매도 처리
+        if unrecorded_sells:
+            logger.warning("="*50)
+            logger.warning("⚠️ 기록되지 않은 매도 감지!")
+            logger.warning(f"   {len(unrecorded_sells)}개의 거래 누락")
+            
+            for sell_info in unrecorded_sells:
+                symbol = sell_info['symbol']
+                entry_price = sell_info['entry_price']
+                exit_price = sell_info['estimated_exit_price']
+                quantity = sell_info['quantity']
+                
+                # 손익 계산
+                pnl = (exit_price - entry_price) * quantity * 0.9995
+                pnl_rate = (exit_price - entry_price) / entry_price
+                
+                # ✅ 거래 기록에 추가
+                self.trade_history.add_trade({
+                    'timestamp': datetime.now().isoformat(),
+                    'symbol': symbol,
+                    'type': 'sell',
+                    'entry_price': entry_price,
+                    'exit_price': exit_price,
+                    'quantity': quantity,
+                    'pnl': pnl,
+                    'pnl_rate': pnl_rate,
+                    'fee': exit_price * quantity * 0.0005,
+                    'hold_time_hours': 0,  # 알 수 없음
+                    'note': 'recovered_from_restart'  # ✅ 복구된 거래 표시
+                })
+                
+                logger.info(f"   ✅ {symbol} 거래 기록 복구: {pnl:+.2f}원")
+            
+            logger.warning("="*50)
         
         if recovered:
             # 3. 복구된 포지션을 리스크 매니저에 등록
