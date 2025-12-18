@@ -1,8 +1,0 @@
-.env
-*.db
-*.log
-__pycache__/
-.pytest_cache/
-logs/
-data/*.csv
-config.json
