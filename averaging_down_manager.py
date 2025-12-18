@@ -1,22 +1,37 @@
-# averaging_down_manager.py
+# averaging_down_manager.py - 하락장 체크 기능 추가
 import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 class AveragingDownManager:
-    """물타기 관리 시스템 - 간단한 버전"""
+    """물타기 관리 시스템 - 하락장 대응 버전"""
     
     def __init__(self, config):
         self.config = config
         self.averaging_history = {}  # {symbol: [매수1, 매수2, ...]}
     
-    def should_average_down(self, symbol, position, current_price):
-        """물타기 실행 여부 판단"""
+    def should_average_down(self, symbol, position, current_price, market_condition=None):
+        """물타기 실행 여부 판단 - ✅ 하락장 체크 추가"""
         
         # 비활성화 체크
         if not self.config.get('enabled', False):
             return False, "물타기 비활성화"
+        
+        # 🚫 하락장 체크 (최우선!)
+        disable_on_bear = self.config.get('disable_on_bear_market', True)
+        if disable_on_bear and market_condition == 'bearish':
+            logger.warning(f"💧 {symbol} 물타기 차단: 현재 하락장 (bearish)")
+            logger.warning(f"   → 시장이 회복될 때까지 물타기 비활성화")
+            logger.warning(f"   → config.py에서 'disable_on_bear_market': False로 설정 시 무시")
+            return False, "하락장에서 물타기 비활성화"
+        
+        # ✅ 횡보장/상승장에서만 물타기 진행
+        if market_condition:
+            if market_condition == 'neutral':
+                logger.info(f"💧 {symbol} 물타기 평가 중... (시장: 횡보장)")
+            elif market_condition == 'bullish':
+                logger.info(f"💧 {symbol} 물타기 평가 중... (시장: 상승장 - 양호)")
         
         # 기존 물타기 횟수 체크
         avg_count = len(self.averaging_history.get(symbol, []))
