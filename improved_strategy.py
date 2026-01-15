@@ -19,7 +19,8 @@ from config import (
     ADVANCED_CONFIG,
     MTF_CONFIG, 
     ML_CONFIG, 
-    SIGNAL_INTEGRATION_CONFIG    
+    SIGNAL_INTEGRATION_CONFIG,
+    STABLE_PAIRS    
 )
 
 logger = logging.getLogger(__name__)
@@ -29,16 +30,17 @@ class ImprovedStrategy:
         self.min_profit_target = STRATEGY_CONFIG['min_profit_target']
         self.max_trades_per_day = STRATEGY_CONFIG['max_trades_per_day']
         self.min_hold_time = STRATEGY_CONFIG['min_hold_time']
-        
+
         self.last_trade_time = {}
         self.trade_count_today = 0
         self.consecutive_losses = 0
-        
-        # ✅ 스마트 쿨다운 설정
-        self.smart_cooldown = True  # 조건부 쿨다운 활성화
+
+        # 🎯 손익비 개선: 손절 후 쿨다운 강화
+        self.smart_cooldown = True   # 조건부 쿨다운 활성화
         self.base_cooldown = 600     # 기본 10분
-        self.loss_cooldown = 3600    # 손실 후 1시간
-        self.win_cooldown = 300      # 수익 후 5분
+        self.loss_cooldown = 7200    # 손실 후 2시간 (기존 1시간 → 강화)
+        self.win_cooldown = 600      # 수익 후 10분 (기존 5분 → 연장)
+        self.last_trade_results = {} # 종목별 마지막 거래 결과 추적
         
         self.market_analyzer = MarketAnalyzer()
         
@@ -110,13 +112,29 @@ class ImprovedStrategy:
         return elapsed_time >= self.min_hold_time
     
     def is_in_cooldown(self, symbol):
-        """종목별 쿨다운 체크"""
+        """🎯 손익비 개선: 손절 후 쿨다운 강화 버전"""
         if symbol not in self.trade_cooldown:
             return False
-        
-        cooldown_time = 180  # 3분
+
+        # 마지막 거래 결과 확인
+        last_result = self.last_trade_results.get(symbol, 'unknown')
+
+        if last_result == 'loss':
+            cooldown_time = self.loss_cooldown  # 손실 후 2시간
+        elif last_result == 'profit':
+            cooldown_time = self.win_cooldown   # 수익 후 10분
+        else:
+            cooldown_time = self.base_cooldown  # 기본 10분
+
         elapsed = time.time() - self.trade_cooldown[symbol]
-        return elapsed < cooldown_time
+
+        if elapsed < cooldown_time:
+            remaining = (cooldown_time - elapsed) / 60
+            if remaining > 5:  # 5분 이상 남았을 때만 로그
+                logger.info(f"{symbol}: 쿨다운 중 (마지막: {last_result}, 남은 시간: {remaining:.0f}분)")
+            return True
+
+        return False
     
     def calculate_entry_score(self, indicators):
         """EMA 도입 및 민감도 향상 버전"""
@@ -271,6 +289,15 @@ class ImprovedStrategy:
             signal_scores['ml'] = 0.5
             signal_details['ml'] = ["ML 비활성화"]
         
+        # ✅ [제안 3] 고위험 종목 필터링 강화
+        market_condition = self.market_analyzer.analyze_market(TRADING_PAIRS)
+        base_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
+        
+        # 알트코인(STABLE_PAIRS에 없는 코인)은 진입 장벽을 1.0점 높임
+        if symbol not in STABLE_PAIRS:
+            base_threshold += 1.0 
+            logger.info(f"⚠️ {symbol}: 비주류 코인 진입 장벽 강화 (+1.0점 추가)")
+        
         # 6. 가중 평균 최종 점수 계산
         final_score = sum(
             signal_scores[key] * self.signal_weights[key]
@@ -325,21 +352,29 @@ class ImprovedStrategy:
         # 9. 최종 판단
         if final_score >= adjusted_threshold:
             return True, (f"✅ 진입 조건 충족 (점수: {final_score:.2f}/{adjusted_threshold:.2f}, "
-                         f"시장: {market_condition})")
-        
-        return False, (f"❌ 진입 조건 미충족 (점수: {final_score:.2f}/{adjusted_threshold:.2f})")
+                         f"시장: {market_condition})"), final_score  # 🆕 점수 반환
+
+        return False, (f"❌ 진입 조건 미충족 (점수: {final_score:.2f}/{adjusted_threshold:.2f})"), final_score  # 🆕 점수 반환
     
-    def record_trade(self, symbol, trade_type):
-        """거래 기록"""
+    def record_trade(self, symbol, trade_type, pnl=0):
+        """🎯 손익비 개선: 거래 결과 추적 추가"""
         today = datetime.now().strftime('%Y-%m-%d')
         self.daily_trades[today] += 1
-        
+
         if trade_type == 'buy':
             self.position_entry_time[symbol] = time.time()
         elif trade_type == 'sell':
             if symbol in self.position_entry_time:
                 del self.position_entry_time[symbol]
             self.trade_cooldown[symbol] = time.time()
+
+            # 🎯 거래 결과 저장 (손익비 개선을 위한 쿨다운 차등 적용)
+            if pnl > 0:
+                self.last_trade_results[symbol] = 'profit'
+                logger.info(f"✅ {symbol} 수익 거래 기록 → 10분 쿨다운")
+            else:
+                self.last_trade_results[symbol] = 'loss'
+                logger.warning(f"❌ {symbol} 손실 거래 기록 → 2시간 쿨다운 (재진입 방지)")
     
     def check_profit_target(self, entry_price, current_price):
         """최소 수익률 달성 여부 확인"""

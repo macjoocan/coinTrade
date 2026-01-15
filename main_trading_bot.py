@@ -1,5 +1,4 @@
 # main_trading_bot.py - 수정 완료 버전
-
 import pyupbit
 import time
 import logging
@@ -16,11 +15,15 @@ from pyramiding_manager import PyramidingManager
 from adaptive_preset_manager import AdaptivePresetManager
 from config import ADAPTIVE_PRESET_CONFIG
 from trade_history_manager import TradeHistoryManager
-from averaging_down_manager import AveragingDownManager        
+from averaging_down_manager import AveragingDownManager
+from slippage_manager import SlippageManager  # 🆕 슬리피지 관리자
+from volatility_monitor import VolatilityMonitor  # 🆕 변동성 모니터
+from score_performance_tracker import ScorePerformanceTracker  # 🆕 점수별 성과 추적
+from auto_optimizer import optimize_on_startup  # 🆕 자동 최적화
 
 from config import (
     TRADING_PAIRS,
-    STRATEGY_CONFIG, 
+    STRATEGY_CONFIG,
     RISK_CONFIG,
     ADVANCED_CONFIG,
     STABLE_PAIRS,
@@ -28,7 +31,9 @@ from config import (
     AVERAGING_DOWN_CONFIG,
     UPBIT_CONFIG,
     apply_preset,  # ✅ 함수 import
-    ACTIVE_PRESET  # ✅ 활성 프리셋 import
+    ACTIVE_PRESET,  # ✅ 활성 프리셋 import
+    SLIPPAGE_CONFIG,  # 🆕 슬리피지 설정
+    VOLATILITY_CONFIG  # 🆕 변동성 설정
 )
 
 # 한글/이모지 인코딩 문제 해결
@@ -114,15 +119,54 @@ class TradingBot:
             logger.info("🤖 자동 프리셋 전환 시스템 활성화")
         else:
             self.preset_manager = None
-        
+
         self.last_preset_check = time.time()
-        
+
+        # 🆕 슬리피지 관리자 추가
+        if SLIPPAGE_CONFIG['enabled']:
+            self.slippage_manager = SlippageManager()
+            logger.info("📊 슬리피지 관리 시스템 활성화")
+            logger.info(f"   최대 허용 슬리피지: {SLIPPAGE_CONFIG['max_slippage_rate']:.2%}")
+        else:
+            self.slippage_manager = None
+
+        # 🆕 변동성 모니터 추가
+        if VOLATILITY_CONFIG['enabled']:
+            self.volatility_monitor = VolatilityMonitor(VOLATILITY_CONFIG)
+            logger.info("🌡️ 변동성 모니터링 시스템 활성화")
+            logger.info(f"   업데이트 간격: {VOLATILITY_CONFIG['update_interval']}초")
+        else:
+            self.volatility_monitor = None
+
+        # 🆕 점수별 성과 추적 추가
+        self.score_tracker = ScorePerformanceTracker()
+        logger.info("📊 진입 점수별 성과 추적 시스템 활성화")
+
         self.partial_exit_manager = PartialExitManager()
-        
+
         # ✅ iteration 카운터 초기화
         self.iteration = 0
-        
+
         logger.info(f"봇 초기화 완료. 초기 자본: {self.balance:,.0f} KRW")
+
+        # 🆕 자동 최적화 실행 (봇 시작 시)
+        logger.info("")
+        logger.info("🤖 자동 설정 최적화 시작...")
+        try:
+            optimized, recommendations = optimize_on_startup(
+                self.score_tracker,
+                auto_apply=False  # False: 추천만, True: 자동 적용
+            )
+
+            if optimized:
+                logger.info("✅ 설정이 자동으로 최적화되었습니다!")
+            elif recommendations:
+                logger.info("💡 추천 사항이 있습니다. 위 메시지를 확인하세요.")
+            else:
+                logger.info("✅ 현재 설정이 최적입니다.")
+        except Exception as e:
+            logger.error(f"자동 최적화 실패: {e}")
+        logger.info("")
 
     def recover_existing_positions(self):
         """기존 포지션 복구"""
@@ -379,14 +423,25 @@ class TradingBot:
                 logger.warning(f"{symbol}: 지표 계산 실패")
                 return False
             
-            # 진입 조건 체크
-            can_enter, reason = self.strategy.should_enter_position(symbol, indicators)
+            # 진입 조건 체크 (🆕 점수도 받음)
+            result = self.strategy.should_enter_position(symbol, indicators)
+            can_enter, reason, entry_score = result if len(result) == 3 else (result[0], result[1], 0)
+
             if not can_enter:
                 logger.info(f"{symbol}: {reason}")
                 return False
-            
-            # 리스크 체크
-            can_trade, risk_reason = self.risk_manager.can_open_new_position()
+
+            # 🆕 시장 상황 조회
+            try:
+                from market_condition_check import MarketAnalyzer
+                market_analyzer = MarketAnalyzer()
+                market_condition = market_analyzer.analyze_market(TRADING_PAIRS)
+            except Exception as e:
+                logger.warning(f"시장 상황 조회 실패: {e}")
+                market_condition = None
+
+            # 리스크 체크 (시장 상황 전달)
+            can_trade, risk_reason = self.risk_manager.can_open_new_position(market_condition)
             if not can_trade:
                 logger.warning(f"리스크 제한: {risk_reason}")
                 return False
@@ -398,7 +453,8 @@ class TradingBot:
             quantity = self.risk_manager.calculate_position_size(
                 self.balance, symbol, current_price,
                 volatility=indicators.get('volatility'),
-                indicators=indicators
+                indicators=indicators,
+                volatility_monitor=self.volatility_monitor  # 🆕 변동성 모니터 전달
             )
             
             if quantity == 0:
@@ -407,9 +463,28 @@ class TradingBot:
             
             # 주문 금액 계산
             order_amount = min(current_price * quantity, self.balance * 0.95)
-            
+
+            # 🆕 슬리피지 체크
+            if self.slippage_manager:
+                is_safe, est_slippage, slip_msg = self.slippage_manager.estimate_slippage(
+                    ticker, 'buy', order_amount
+                )
+
+                if not is_safe:
+                    logger.warning(f"⚠️ {symbol} 매수 취소: {slip_msg}")
+                    return False
+
+                logger.info(f"📊 {symbol} 슬리피지 체크: {slip_msg}")
+
+                # 슬리피지 버퍼 적용
+                if SLIPPAGE_CONFIG.get('slippage_buffer', 0) > 0:
+                    buffer = SLIPPAGE_CONFIG['slippage_buffer']
+                    order_amount = order_amount * (1 - buffer)
+                    logger.info(f"   슬리피지 버퍼 적용: -{buffer:.1%}")
+
             # ✅ 실제 매수 실행 - 체결 정보 받기
             try:
+                expected_price = current_price  # 슬리피지 기록용
                 order = self.upbit.buy_market_order(ticker, order_amount)
                 
                 if order:
@@ -440,14 +515,25 @@ class TradingBot:
                     # ✅ 실제 체결 정보로 업데이트
                     self.strategy.record_trade(symbol, 'buy')
                     self.risk_manager.update_position(symbol, actual_price, actual_quantity, 'buy')
-                    
+
+                    # 🆕 포지션에 진입 점수 저장
+                    if symbol in self.risk_manager.positions:
+                        self.risk_manager.positions[symbol]['entry_score'] = entry_score
+                        logger.info(f"📊 진입 점수 기록: {entry_score:.2f}/10")
+
                     self.daily_summary.record_trade({
                         'symbol': symbol,
                         'type': 'buy',
                         'price': actual_price,
                         'quantity': actual_quantity
                     })
-                    
+
+                    # 🆕 실제 슬리피지 기록
+                    if self.slippage_manager:
+                        self.slippage_manager.record_actual_slippage(
+                            symbol, expected_price, actual_price, 'buy', order_amount
+                        )
+
                     logger.info(f"✅ 매수 완료: {symbol} @ {actual_price:,.0f} KRW (수량: {actual_quantity:.8f})")
                     return True
                     
@@ -477,11 +563,25 @@ class TradingBot:
             # ✅ 진입 정보 미리 저장
             entry_price = float(position['entry_price'])
             entry_quantity = float(position['quantity'])
-            
+
             logger.info(f"매도 시작: {symbol}, 진입가={entry_price:,.2f}, 진입수량={entry_quantity:.8f}")
+
+            # 🆕 슬리피지 체크 (매도)
+            if self.slippage_manager:
+                order_value = current_price * quantity
+                is_safe, est_slippage, slip_msg = self.slippage_manager.estimate_slippage(
+                    ticker, 'sell', order_value
+                )
+
+                if not is_safe:
+                    logger.warning(f"⚠️ {symbol} 매도 슬리피지 경고: {slip_msg}")
+                    # 매도는 손절/익절이므로 슬리피지가 높아도 실행
+                else:
+                    logger.info(f"📊 {symbol} 슬리피지 체크: {slip_msg}")
 
             # 실제 매도 실행
             try:
+                expected_price = current_price  # 슬리피지 기록용
                 order = self.upbit.sell_market_order(ticker, quantity)
                 
                 if order:
@@ -603,9 +703,9 @@ class TradingBot:
                     logger.info(f"순손익: {real_pnl:+,.2f} KRW")
                     logger.info(f"수익률: {pnl_rate:+.2%}")
                     logger.info(f"{'='*60}\n")
-                    
+
                     # ✅ 기록 업데이트 (actual_price는 실제 매도가!)
-                    self.strategy.record_trade(symbol, 'sell')
+                    self.strategy.record_trade(symbol, 'sell', pnl=real_pnl)  # 🎯 손익비 개선: PnL 전달
                     self.risk_manager.update_position(symbol, actual_price, actual_quantity, 'sell')
 
                     self.daily_summary.record_trade({
@@ -616,7 +716,7 @@ class TradingBot:
                         'pnl': real_pnl,
                         'pnl_rate': pnl_rate
                     })
-                    
+
                     # 프리셋 매니저에 거래 기록
                     if self.preset_manager:
                         self.preset_manager.record_trade({
@@ -625,12 +725,32 @@ class TradingBot:
                             'pnl_rate': pnl_rate
                         })
 
+                    # 🆕 실제 슬리피지 기록 (매도)
+                    if self.slippage_manager:
+                        self.slippage_manager.record_actual_slippage(
+                            symbol, expected_price, actual_price, 'sell',
+                            actual_price * actual_quantity
+                        )
+
+                    # 🆕 점수별 성과 추적 기록
+                    entry_score = position.get('entry_score', 0)
+                    if entry_score > 0:
+                        self.score_tracker.record_trade(
+                            entry_score=entry_score,
+                            pnl=real_pnl,
+                            pnl_rate=pnl_rate,
+                            symbol=symbol,
+                            entry_price=entry_price,
+                            exit_price=actual_price
+                        )
+                        logger.info(f"📊 점수별 성과 기록: {entry_score:.2f}점 → {pnl_rate:+.2%}")
+
                     logger.info(f"🔴 매도 완료: {symbol} @ {actual_price:,.2f} KRW "
                                 f"(PnL {real_pnl:+,.2f}, {pnl_rate:+.2%})")
-                    
+
                     # ✅ 물타기 기록 삭제
                     self.averaging_manager.clear_history(symbol)
-                    
+
                     return True
                     
             except Exception as e:
@@ -1024,63 +1144,70 @@ class TradingBot:
                     loss_rate = (current_price - entry_price) / entry_price
                     
                     # 1. 부분 매도 체크 (최우선)
+                    # 분할 매도 체크 강화
                     partial_exit, sold_quantity = self.partial_exit_manager.check_partial_exit(
                         symbol, entry_price, entry_time, current_price, current_quantity, self.upbit
                     )
-                    
+
                     if partial_exit:
-                        remaining = current_quantity - sold_quantity
-                        
-                        if remaining < 0.0001:
-                            self.partial_exit_manager.reset_position(symbol)
-                            self.risk_manager.update_position(symbol, current_price, current_quantity, 'sell')
-                            logger.info(f"✅ {symbol} 전량 청산 완료")
-                        else:
-                            self.risk_manager.positions[symbol]['quantity'] = remaining
-                            logger.info(f"ℹ️ {symbol} 남은 수량: {remaining:.8f}")
-                        
-                        continue
+                        # 50%를 팔았으므로 리스크 매니저의 수량 갱신
+                        self.risk_manager.positions[symbol]['quantity'] -= sold_quantity
+                        # ✅ 중요: 분할 매도 직후 손절가를 본절가로 이동하여 남은 물량 리스크 제거
+                        self.risk_manager.positions[symbol]['entry_price'] = entry_price # 평단 유지
+                        self.risk_manager.stop_loss = -0.002 # 남은 물량은 본절 시 바로 던짐
+                        logger.info(f"✅ {symbol} 1차 분할 익절 완료. 남은 물량 본절 방어 모드 진입")
                     
                     # 2. ✅ 손절 체크 (보유시간 무시) - force_stop_loss=True 전달
-                    if self.risk_manager.check_stop_loss(symbol, current_price, self.averaging_manager):
+                    if self.risk_manager.check_stop_loss(
+                        symbol, current_price, self.averaging_manager,
+                        self.volatility_monitor  # 🆕 변동성 모니터 전달
+                    ):
                         logger.warning(f"{symbol}: 🚨 손절 발동 (손실률: {loss_rate:.2%}) - 즉시 실행")
                         self.execute_trade(symbol, 'sell', current_price, force_stop_loss=True)
                         self.partial_exit_manager.reset_position(symbol)
                         continue
                     
-                    # 3. 추적 손절 체크
+                    # 3. 추적 손절 체크 (수정 버전)
                     if self.risk_manager.check_trailing_stop(symbol, current_price):
                         # ✅ 현재 수익/손실 상태 확인
                         position = self.risk_manager.positions[symbol]
                         entry_price = position['entry_price']
                         current_pnl_rate = (current_price - entry_price) / entry_price
                         
-                        # ✅ 물타기 완료 여부 확인
+                        # 🎯 수익 확정 기준 상향: 2.0% 이상에서만 강제 익절
+                        # (기존 1.2%는 너무 낮아서 큰 수익 기회를 놓침)
+                        if current_pnl_rate >= 0.020:  # 기존 0.012 → 0.020
+                            logger.warning(f"{symbol}: 🎯 목표 수익 달성 (+{current_pnl_rate*100:.2f}%)")
+                            logger.warning(f"   → 추적 손절 조건 충족으로 익절 실행")
+                            self.execute_trade(symbol, 'sell', current_price)
+                            self.partial_exit_manager.reset_position(symbol)
+                            self.averaging_manager.clear_history(symbol)
+                            continue
+
+                        # ✅ 물타기 완료 여부에 따른 기존 처리
                         if self.is_averaging_completed(symbol):
-                            # 물타기 완료 → 추적 손절 실행
-                            logger.warning(f"{symbol}: 🎯 추적 손절 실행 - 수익 보호")
+                            # 물타기 완료 → 추적 손절 실행 (수익 보호)
+                            logger.warning(f"{symbol}: 🎯 물타기 완료 후 추적 손절 실행")
                             logger.info(f"   현재 수익률: {current_pnl_rate*100:+.2f}%")
-                            logger.info(f"   (물타기 완료 후 추적 손절)")
                             self.execute_trade(symbol, 'sell', current_price)
                             self.partial_exit_manager.reset_position(symbol)
                             self.averaging_manager.clear_history(symbol)
                             continue
                         else:
-                            # 물타기 진행 중 → 수익/손실 상태에 따라 다르게 처리
+                            # 물타기 진행 중 → 1.2% 미만 수익이나 손실 상태에서의 처리
                             avg_info = self.averaging_manager.get_averaging_info(symbol)
                             
                             if current_pnl_rate > 0:
-                                # ✅ 수익 상태 - 추적 손절 보류, 계속 홀딩
-                                logger.info(f"{symbol}: 추적 손절 발동 (최고점 대비 하락)")
-                                logger.info(f"   💰 현재 수익률: +{current_pnl_rate*100:.2f}%")
-                                logger.info(f"   📊 물타기 진행: {avg_info['count']}/{AVERAGING_DOWN_CONFIG['max_averaging_count']}차")
-                                logger.info(f"   ✅ 수익 상태 유지 - 추적 손절 보류, 계속 홀딩")
+                                # 0% ~ 1.2% 사이의 낮은 수익 상태: 물타기 기회를 위해 일단 홀딩
+                                logger.info(f"{symbol}: 추적 손절 신호 감지 (현재 수익: +{current_pnl_rate*100:.2f}%)")
+                                logger.info(f"   📊 물타기 잔여: {avg_info['count']}/{AVERAGING_DOWN_CONFIG['max_averaging_count']}차")
+                                logger.info(f"   ✅ 낮은 수익 구간 - 목표가 도달 혹은 추가 물타기를 위해 홀딩")
                             else:
-                                # ✅ 손실 상태 - 물타기 우선 고려
-                                logger.info(f"{symbol}: 추적 손절 감지 - 물타기 우선")
+                                # 손실 상태: 물타기 우선 고려
+                                logger.info(f"{symbol}: 추적 손절 감지 (손실 상태 - 물타기 우선)")
                                 logger.info(f"   📉 현재 손실률: {current_pnl_rate*100:.2f}%")
                                 logger.info(f"   💧 물타기 진행: {avg_info['count']}/{AVERAGING_DOWN_CONFIG['max_averaging_count']}차")
-                                logger.info(f"   🎯 물타기로 평단가 낮추기 시도")
+                                logger.info(f"   🎯 평단가 낮추기 대기 중")
                     
                     # 4. 목표 수익 체크 (남은 수량 전량 매도)
                     if self.strategy.check_profit_target(entry_price, current_price):
@@ -1144,6 +1271,18 @@ class TradingBot:
         print("\n" + "="*60)
         print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*60)
+
+        # 🆕 변동성 현황 (간단 버전)
+        if self.volatility_monitor:
+            market_vol, market_grade = self.volatility_monitor.get_market_volatility(TRADING_PAIRS)
+            grade_emoji = {
+                'low': '🟢',
+                'medium': '🟡',
+                'high': '🟠',
+                'extreme': '🔴'
+            }
+            emoji = grade_emoji.get(market_grade, '⚪')
+            print(f"🌡️ 시장 변동성: {emoji} {market_vol:.2%} ({market_grade.upper()})")
         
         # 시장 상황 표시
         from market_condition_check import MarketAnalyzer
@@ -1189,10 +1328,20 @@ class TradingBot:
         # 경고 메시지
         if risk_status['consecutive_losses'] > 0:
             print(f"⚠️ 연속 손실: {risk_status['consecutive_losses']}회")
-        
+
+        # 🆕 거래 중단 상태 표시
+        if self.risk_manager.trading_suspended:
+            print("")
+            print("🚨 거래 중단 상태")
+            if self.risk_manager.suspension_start_time:
+                suspended_duration = (datetime.now() - self.risk_manager.suspension_start_time).total_seconds() / 60
+                print(f"   중단 시간: {suspended_duration:.0f}분 경과")
+            print(f"   재개 조건: 시장 상황 개선 (상승장 전환)")
+            print("")
+
         if risk_status['daily_pnl_rate'] < -0.03:
             print("⚠️ 일일 손실 주의!")
-        
+
         print("="*60)
     
     def run(self):
@@ -1301,11 +1450,31 @@ class TradingBot:
                             import traceback
                             logger.error(traceback.format_exc())
                 
+                # 🆕 변동성 모니터링 업데이트
+                if self.volatility_monitor:
+                    self.volatility_monitor.update_volatility(TRADING_PAIRS)
+
+                    # 극단 변동성 체크
+                    should_pause, pause_reason = self.volatility_monitor.should_pause_trading(TRADING_PAIRS)
+                    if should_pause:
+                        logger.warning(f"⚠️ {pause_reason}")
+                        logger.warning("   → 신규 진입 일시 중단, 기존 포지션만 관리")
+                        # 신규 진입 스킵, 청산만 계속
+                        self.check_exit_conditions()
+                        time.sleep(10)
+                        continue
+
+                    # 변동성 급증 감지
+                    for symbol in TRADING_PAIRS:
+                        is_spike, ratio = self.volatility_monitor.detect_volatility_spike(symbol)
+                        if is_spike:
+                            logger.warning(f"🌡️ {symbol} 변동성 급증 ({ratio:.1f}배) - 진입 보류")
+
                 # 동적 코인 업데이트 (6시간마다)
-                self.update_trading_pairs()                
-                
+                self.update_trading_pairs()
+
                 self.check_averaging_down_opportunity()
-                
+
                 # 청산 조건 체크
                 self.check_exit_conditions()
                 
@@ -1333,8 +1502,13 @@ class TradingBot:
                 current_time = datetime.now()
                 if current_time.hour == 0 and current_time.minute == 0:
                     yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-                    self.daily_summary.finalize_day(yesterday)                    
+                    self.daily_summary.finalize_day(yesterday)
                     self.risk_manager.reset_daily_stats()
+
+                    # 🆕 점수별 성과 리포트 출력 및 저장
+                    self.score_tracker.print_report(min_trades=3)
+                    self.score_tracker.save_data()
+
                     logger.info("일일 통계 리셋 및 저장 완료")
                 
             except KeyboardInterrupt:
@@ -1412,8 +1586,8 @@ class TradingBot:
                         'fee': paid_fee,
                         'hold_time_hours': hold_time_hours
                     })
-                    
-                    self.strategy.record_trade(symbol, 'sell')
+
+                    self.strategy.record_trade(symbol, 'sell', pnl=pnl)  # 🎯 손익비 개선: PnL 전달
                     self.risk_manager.update_position(symbol, current_price, quantity, 'sell')
                     logger.info(f"🔴 강제 손절: {symbol} @ {current_price:,.0f} KRW (PnL: {pnl:+,.0f})")
                     logger.info(f"📝 거래 기록 저장: {symbol} PnL: {pnl:+,.0f}")

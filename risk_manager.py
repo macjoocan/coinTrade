@@ -48,6 +48,8 @@ class RiskManager:
         
         # 4. 통계 변수
         self.consecutive_losses = 0
+        self.trading_suspended = False  # 🆕 거래 중단 플래그
+        self.suspension_start_time = None  # 🆕 중단 시작 시간
         self.all_trades_history = []
         self.total_wins = 0
         self.total_losses = 0
@@ -108,42 +110,48 @@ class RiskManager:
         
         return is_over_limit
 
-    def calculate_position_size(self, balance, symbol, current_price, volatility=None, indicators=None):
+    def calculate_position_size(self, balance, symbol, current_price, volatility=None, indicators=None, volatility_monitor=None):
         """포지션 크기 계산 (Kelly + 시장상황 + 변동성)"""
-        
+
         # 1. Kelly Criterion 기반 비중 계산
         kelly_fraction = self._calculate_kelly_fraction()
         base_position_value = balance * min(self.max_position_size, kelly_fraction)
-        
+
         # 2. 동적 코인(알트코인) 패널티
         if symbol not in STABLE_PAIRS:
             base_position_value *= 0.6
-            
+
         # 3. 시장 상황별 조정 (MarketAnalyzer 연동)
         if self.market_analyzer:
             multiplier = self.market_analyzer.get_position_size_multiplier()
             base_position_value *= multiplier
-        
-        # 4. 변동성 역비례 조정 (변동성 크면 비중 축소)
-        if volatility and volatility > 0:
+
+        # 4. 🆕 변동성 모니터 기반 조정 (우선 적용)
+        if volatility_monitor:
+            base_position_value = volatility_monitor.get_dynamic_position_size(
+                symbol, base_position_value
+            )
+            logger.info(f"변동성 기반 포지션 크기 조정 완료")
+        # 4-1. 기존 변동성 역비례 조정 (백업)
+        elif volatility and volatility > 0:
             vol_adjustment = min(1.0, 0.02 / volatility)
             base_position_value *= vol_adjustment
-        
+
         # 5. 연속 손실 중이면 비중 축소
         if self.consecutive_losses > 0:
             loss_adjustment = 1.0 / (1 + self.consecutive_losses * 0.2)
             base_position_value *= loss_adjustment
             logger.info(f"연속 손실 패널티 적용: 비중 {loss_adjustment:.1%}로 축소")
-        
+
         # 6. 최종 금액 범위 제한
-        min_order_amount = 5500 # 업비트 최소 주문 + 여유
+        min_order_amount = 5500  # 업비트 최소 주문 + 여유
         max_order_amount = balance * self.max_position_size
-        
+
         final_position_value = max(min_order_amount, min(base_position_value, max_order_amount))
-        
+
         if final_position_value < min_order_amount:
             return 0
-        
+
         return final_position_value / current_price
     
     def _calculate_kelly_fraction(self):
@@ -160,81 +168,83 @@ class RiskManager:
         
         return min(max(conservative_kelly, 0.01), 0.1) # 최소 1%, 최대 10%
     
-    def check_stop_loss(self, symbol, current_price, averaging_manager=None):
-        """손절 체크 (물타기 횟수에 따라 유동적)"""
+    def check_stop_loss(self, symbol, current_price, averaging_manager=None, volatility_monitor=None):
+        """✅ 제안 4 적용: 물타기 시 손절 라인 엄격화 + 변동성 기반 동적 손절"""
         if symbol not in self.positions:
             return False
-        
+
         position = self.positions[symbol]
         entry_price = position['entry_price']
-        
-        # 기본 손절 기준
-        base_stop_loss = self.stop_loss
-        
-        # 물타기 횟수에 따른 손절 범위 확장
+        base_stop_loss = self.stop_loss  # 기본 프리셋 값 (예: 0.6%)
+
+        # 🆕 변동성 기반 동적 손절 (우선 적용)
+        if volatility_monitor:
+            base_stop_loss = volatility_monitor.get_dynamic_stop_loss(symbol, base_stop_loss)
+            logger.info(f"{symbol} 변동성 기반 손절: {base_stop_loss:.2%}")
+
+        # ✅ 물타기를 하더라도 손절폭을 최대 1.8% 이내로 고정 (기존 2.5%에서 축소)
         if averaging_manager:
             avg_info = averaging_manager.get_averaging_info(symbol)
             avg_count = avg_info['count']
-            
+
             if avg_count > 0:
-                # 1회당 0.5%p씩 여유, 최대 2.5%까지
-                adjustment = min(avg_count * 0.005, 0.010)
-                adjusted_stop_loss = min(base_stop_loss + adjustment, 0.025)
+                # 1회당 0.3%p씩만 여유, 최대 1.8%로 엄격히 제한
+                adjustment = min(avg_count * 0.003, 0.008)
+                adjusted_stop_loss = base_stop_loss + adjustment
             else:
                 adjusted_stop_loss = base_stop_loss
         else:
             adjusted_stop_loss = base_stop_loss
-        
+
         loss_rate = (current_price - entry_price) / entry_price
-        
+
+        # 손절 판단
         if loss_rate <= -adjusted_stop_loss:
-            logger.warning(f"✂️ {symbol} 손절 신호: {loss_rate:.1%} (기준: -{adjusted_stop_loss:.1%})")
+            logger.warning(f"{symbol} 손절 발동: {loss_rate:.2%} <= -{adjusted_stop_loss:.2%}")
             return True
-        
-        # 하락장(bearish)일 경우 손절 기준을 20% 단축 (더 빨리 도망가기)
-        if self.market_analyzer and self.market_analyzer.analyze_market(STABLE_PAIRS) == 'bearish':
-            adjusted_stop_loss *= 0.8 
-            logger.info(f"🐻 하락장 감지: 손절 라인 단축 ({adjusted_stop_loss:.1%})")
-        
         return False
     
     def check_trailing_stop(self, symbol, current_price):
-        """추적 손절 (익절 보호) - ✅ 수수료 고려 버전"""
-        
-        if symbol not in self.positions:
-            return False
-        
+        """🎯 손익비 개선 버전: 수익을 더 크게 끌고 가는 추적 손절"""
+        if symbol not in self.positions: return False
+
         position = self.positions[symbol]
         entry_price = position['entry_price']
         highest_price = position.get('highest_price', entry_price)
-        
-        # 최고가 갱신
+
         if current_price > highest_price:
             self.positions[symbol]['highest_price'] = current_price
             highest_price = current_price
-        
-        # 현재 수익률 (진입가 대비)
+
         profit_rate = (highest_price - entry_price) / entry_price
-        
-        # ✅ 개선된 로직: 최소 1.2% 수익부터 작동 (수수료 방어)
-        if profit_rate > 0.030:    # +3.0% 이상 (대박 구간)
-            trailing_pct = 0.015   # 1.5% 여유
-        elif profit_rate > 0.020:  # +2.0% 이상
-            trailing_pct = 0.010   # 1.0% 여유
-        elif profit_rate > 0.012:  # +1.2% 이상 (최소 마진 확보)
-            trailing_pct = 0.005   # 0.5% 여유
-        else:
-            return False  # 아직 수익이 적으면 놔둠 (목표가 대기)
-        
-        # 추적 손절가 계산
-        trailing_stop_price = highest_price * (1 - trailing_pct)
-        
-        if current_price <= trailing_stop_price:
-            logger.warning(f"🎯 {symbol} 추적 손절 발동 (수익 확정)")
-            logger.info(f"   최고가: {highest_price:,.0f} | 현재가: {current_price:,.0f}")
-            logger.info(f"   최고 수익률: {profit_rate:.1%}")
+
+        # 1.0% 미만 수익 시에는 추적 손절 비활성화 (수수료 방어 강화)
+        if profit_rate < 0.010: return False
+
+        # 🎯 손익비 개선: 추적 손절 기준 완화 (더 큰 수익 노리기)
+        trailing_pct = None
+        if profit_rate >= 0.050:      # 5% 이상: 고점대비 1.2% 하락까지 허용 (기존 없음)
+            trailing_pct = 0.012
+            logger.info(f"💎 {symbol} 고수익 구간 (+{profit_rate:.1%}) - 여유 있게 관찰")
+        elif profit_rate >= 0.040:    # 4% 이상: 고점대비 1.0% 하락까지 허용 (신규)
+            trailing_pct = 0.010
+        elif profit_rate >= 0.030:    # 3% 이상: 고점대비 0.8% 하락까지 허용 (기존 0.7% → 완화)
+            trailing_pct = 0.008
+        elif profit_rate >= 0.020:    # 2% 이상: 고점대비 0.6% 하락까지 허용 (기존 0.5% → 완화)
+            trailing_pct = 0.006
+        elif profit_rate >= 0.015:    # 1.5% 이상: 고점대비 0.5% 하락까지 허용 (기존 0.4% → 완화)
+            trailing_pct = 0.005
+        elif profit_rate >= 0.010:    # 1.0% 이상: 본절가(+0.8%) 방어
+            # 🎯 본절 방어 기준 상향: +0.4% → +0.8%
+            # (너무 타이트해서 2.0% 도달이 불가능했음)
+            if current_price <= entry_price * 1.008:  # 기존 1.004 → 1.008
+                logger.warning(f"🛡️ {symbol} 본절 방어 (+0.8%) 및 수수료 확보 탈출")
+                return True
+            return False
+
+        if trailing_pct and current_price <= highest_price * (1 - trailing_pct):
+            logger.warning(f"🎯 {symbol} 추적 손절 발동 (최고가 대비 -{trailing_pct:.1%}, 총 수익 +{profit_rate:.1%})")
             return True
-        
         return False
     
     def update_position(self, symbol, entry_price, quantity, trade_type):
@@ -280,17 +290,58 @@ class RiskManager:
             del self.positions[symbol]
             logger.info(f"➖ 포지션 삭제: {symbol} (연속 손실: {self.consecutive_losses}회)")
 
-    def can_open_new_position(self):
-        """신규 진입 가능 여부 체크"""
+    def can_open_new_position(self, market_condition=None):
+        """
+        신규 진입 가능 여부 체크
+
+        Args:
+            market_condition: 'bullish', 'bearish', 'neutral' (시장 상황)
+        """
+        # 일일 손실 한도 체크
         if self.check_daily_loss_limit():
             return False, "일일 손실 한도 초과"
-        
+
+        # 🆕 연속 손실로 인한 중단 체크 (시장 상황 고려)
         if self.consecutive_losses >= self.max_consecutive_losses:
-            return False, f"연속 손실 {self.consecutive_losses}회로 인한 중단"
-        
+            # 거래 중단 플래그 설정
+            if not self.trading_suspended:
+                self.trading_suspended = True
+                self.suspension_start_time = datetime.now()
+                logger.warning(f"🚨 연속 {self.consecutive_losses}회 손실 - 거래 중단")
+                logger.warning(f"   중단 시각: {self.suspension_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.warning(f"   재개 조건: 시장 상황 개선 (상승장 전환)")
+
+            # 🆕 시장 상황이 상승장으로 전환되면 재개
+            if market_condition == 'bullish':
+                logger.info("=" * 60)
+                logger.info("🟢 시장 상황 개선 감지 - 거래 재개 검토")
+                logger.info(f"   중단 시각: {self.suspension_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.info(f"   현재 시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.info(f"   시장 상황: {market_condition.upper()}")
+
+                # 연속 손실 카운터 절반 감소 (완전 리셋은 위험)
+                old_losses = self.consecutive_losses
+                self.consecutive_losses = max(1, self.consecutive_losses // 2)
+                self.trading_suspended = False
+                self.suspension_start_time = None
+
+                logger.info(f"   연속 손실: {old_losses}회 → {self.consecutive_losses}회 (리셋)")
+                logger.info(f"✅ 거래 재개! (신중 모드)")
+                logger.info("=" * 60)
+
+                return True, "시장 개선으로 거래 재개"
+
+            return False, f"연속 손실 {self.consecutive_losses}회로 인한 중단 (상승장 전환 대기 중)"
+
+        # 거래가 재개되었으면 플래그 해제
+        if self.trading_suspended:
+            self.trading_suspended = False
+            self.suspension_start_time = None
+
+        # 최대 포지션 수 체크
         if len(self.positions) >= self.max_positions:
             return False, "최대 포지션 수 도달"
-        
+
         return True, "가능"
     
     def get_risk_status(self):
@@ -319,3 +370,30 @@ class RiskManager:
         self.daily_pnl[today] = 0
         self.daily_trades[today] = []
         logger.info("📅 일일 리스크 통계가 초기화되었습니다.")
+
+    def manual_resume_trading(self):
+        """
+        수동으로 거래 재개
+
+        Returns:
+            (success, message)
+        """
+        if not self.trading_suspended:
+            return False, "거래가 중단되지 않았습니다."
+
+        logger.info("=" * 60)
+        logger.info("🔓 수동 거래 재개")
+        logger.info(f"   중단 시각: {self.suspension_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"   재개 시각: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+        # 연속 손실 카운터 리셋
+        old_losses = self.consecutive_losses
+        self.consecutive_losses = 0
+        self.trading_suspended = False
+        self.suspension_start_time = None
+
+        logger.info(f"   연속 손실: {old_losses}회 → 0회 (완전 리셋)")
+        logger.info("✅ 거래 재개 완료!")
+        logger.info("=" * 60)
+
+        return True, "수동으로 거래 재개됨"

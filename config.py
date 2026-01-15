@@ -6,19 +6,20 @@
 
 # 업비트 API 관련 설정
 UPBIT_CONFIG = {
-    'min_order_value': 8000,         # 최소 주문 금액 (KRW)
-    'min_order_amount': 5500,        # 최소 주문 금액 (수수료 고려)
+    'min_order_value': 5500,         # 최소 주문 금액 (KRW)
+    'min_order_amount': 5000,        # 최소 주문 금액 (수수료 고려)
     'fee_rate': 0.0005,              # 거래 수수료 (0.05%)
     'api_rate_limit': 10,            # 초당 API 호출 제한
 }
 
 # 전략 기본 설정
 STRATEGY_CONFIG = {
-    'min_profit_target': 0.015,      # 목표 수익률 1.5%
+    'min_profit_target': 0.025,     # 목표 수익률 2.5% (기존 2% → 개선)
     'max_trades_per_day': 50,        # 일일 최대 거래 횟수
     'min_hold_time': 600,            # 최소 보유 시간 (초)
     'status_print_interval': 300,    # 상태 출력 간격 (5분)
     'position_save_interval': 60,    # 포지션 저장 간격 (1분)
+    'trade_cooldown_minutes': 60,
 }
 
 # ==========================================
@@ -144,14 +145,14 @@ SIGNAL_INTEGRATION_CONFIG = {
     },
     
     'market_adjustment': {
-        'bullish': -0.2,
-        'neutral': 0.0,
-        'bearish': 0.5,
+        'bullish': 0.0,
+        'neutral': 0.2,
+        'bearish': 1.5,
     },
     
     'ignore_signals': {
-        'on_consecutive_losses': 2,
-        'on_daily_loss_exceed': 0.015,
+        'on_consecutive_losses': 1,
+        'on_daily_loss_exceed': 0.0,
         'ignore_weak_signals': True,
     }
 }
@@ -160,13 +161,13 @@ SIGNAL_INTEGRATION_CONFIG = {
 # 💧 3. 물타기 (Averaging Down) 설정
 # ==========================================
 AVERAGING_DOWN_CONFIG = {
-    'enabled': True,
-    'trigger_loss_rate': -0.008,     # -0.8% 손실 시 발동
-    'max_averaging_count': 3,        # 최대 3회
-    'averaging_size_ratio': 1.0,     # 1배수 물타기
-    'max_total_loss': -0.05,         # -5% 초과 하락 시 물타기 중단
+    'enabled': False,              # 🚨 손익비 개선을 위해 물타기 비활성화 (손실 확대 방지)
+    'trigger_loss_rate': -0.004,     # -0.4% 손실 시 발동 (더 빠르게)
+    'max_averaging_count': 1,        # 최대 1회로 제한 (기존 3회 → 개선)
+    'averaging_size_ratio': 0.5,     # 0.5배수 물타기 (기존 1.0배 → 개선)
+    'max_total_loss': -0.03,         # -3% 초과 하락 시 물타기 중단 (기존 -5% → 강화)
     'min_balance_ratio': 0.3,
-    'only_stable_coins': False,
+    'only_stable_coins': True,       # 안정 코인만 물타기 허용 (리스크 축소)
     'disable_on_bear_market': True,  # 하락장에서는 물타기 금지
     'log_details': True,
 }
@@ -193,11 +194,11 @@ ADAPTIVE_PRESET_CONFIG = {
     'min_confidence': 0.6,
     'min_trades_for_analysis': 10,
     
-    # 강제 전환 (방어 모드)
+    # 강제 전환 (방어 모드) - 🚨 더 빠르게 방어 모드 진입
     'force_conservative_on': {
-        'consecutive_losses': 2,
-        'daily_loss_rate': 0.03,
-        'high_volatility': 0.05,
+        'consecutive_losses': 1,            # 🚨 2 → 1 (1회 손실만 방어)
+        'daily_loss_rate': 0.015,           # 🚨 0.03 → 0.015 (-1.5%만 방어)
+        'high_volatility': 0.04,            # 🚨 0.05 → 0.04 (더 빨리 방어)
     },
     
     'force_balanced_on': {
@@ -212,58 +213,58 @@ ADAPTIVE_PRESET_CONFIG = {
 # 🎛️ 5. 전략 프리셋 (여기가 실제 설정을 지배합니다!)
 # ==========================================
 STRATEGY_PRESETS = {
-    # 🛡️ 보수적 전략 (방어 중심)
+    # 🛡️ 보수적 전략 (방어 중심) - 🎯 현실적 조정: 실제 거래 가능하도록
     'conservative': {
-        'entry_score_threshold': 6.5,       # 진입 장벽 높음
-        'mtf_min_score': 7.0,
-        'mtf_min_consensus': 0.80,
-        'ml_min_probability': 0.75,
-        
+        'entry_score_threshold': 6.0,       # 🎯 현실적: 7.5 → 6.0 (너무 높으면 거래 없음)
+        'mtf_min_score': 6.5,               # 🎯 현실적: 8.0 → 6.5
+        'mtf_min_consensus': 0.75,          # 🎯 현실적: 0.85 → 0.75
+        'ml_min_probability': 0.70,         # 🎯 현실적: 0.80 → 0.70
+
         'signal_weights': {
             'technical': 0.25,
             'mtf': 0.45,
             'ml': 0.30
         },
-        
-        'max_positions': 2,
+
+        'max_positions': 1,                 # 🚨 한 종목만 집중
         'max_position_size': 0.15,
-        'stop_loss': 0.008,                 # 짧은 손절 (0.8%)
+        'stop_loss': 0.015,                 # 🚨 손절 완화: 1.5% (정상 변동 허용)
     },
     
-    # ⚖️ 균형 전략 (일반 상황)
+    # ⚖️ 균형 전략 (일반 상황) - 🎯 현실적 조정
     'balanced': {
-        'entry_score_threshold': 4.5,       # 적절한 진입 장벽
-        'mtf_min_score': 6.0,
-        'mtf_min_consensus': 0.70,
-        'ml_min_probability': 0.25,
-        
+        'entry_score_threshold': 5.5,       # 🎯 현실적: 6.5 → 5.5
+        'mtf_min_score': 6.0,               # 🎯 현실적: 7.0 → 6.0
+        'mtf_min_consensus': 0.70,          # 🎯 현실적: 0.75 → 0.70
+        'ml_min_probability': 0.55,         # 🎯 현실적: 0.60 → 0.55
+
         'signal_weights': {
             'technical': 0.40,
             'mtf': 0.50,
             'ml': 0.10
         },
-        
-        'max_positions': 5,
+
+        'max_positions': 2,                 # 🚨 집중 투자
         'max_position_size': 0.20,
-        'stop_loss': 0.010,                 # 표준 손절 (1.0%)
+        'stop_loss': 0.015,                 # 🚨 손절 완화: 1.5%
     },
     
-    # ⚔️ 공격적 전략 (상승장용)
+    # ⚔️ 공격적 전략 (상승장용) - 🎯 현실적 조정
     'aggressive': {
-        'entry_score_threshold': 3.8,       # 낮은 진입 장벽
-        'mtf_min_score': 5.5,
-        'mtf_min_consensus': 0.65,
-        'ml_min_probability': 0.25,
-        
+        'entry_score_threshold': 5.0,       # 🎯 현실적: 6.0 → 5.0
+        'mtf_min_score': 5.5,               # 🎯 현실적: 6.5 → 5.5
+        'mtf_min_consensus': 0.65,          # 🎯 현실적: 0.70 → 0.65
+        'ml_min_probability': 0.45,         # 🎯 현실적: 0.50 → 0.45
+
         'signal_weights': {
             'technical': 0.80,
             'mtf': 0.20,
             'ml': 0
         },
-        
-        'max_positions': 4,
-        'max_position_size': 0.5,
-        'stop_loss': 0.012,
+
+        'max_positions': 2,                 # 🚨 집중 투자
+        'max_position_size': 0.25,          # 🚨 리스크 축소
+        'stop_loss': 0.020,                 # 🚨 손절 완화: 2.0%
     },
     
     # 🧠 ML 중심 전략
@@ -290,7 +291,7 @@ STRATEGY_PRESETS = {
 # ==========================================
 
 # ⚠️ 여기서 설정한 프리셋의 값들이 위의 기본 설정들을 덮어씁니다!
-ACTIVE_PRESET = 'balanced'
+ACTIVE_PRESET = 'conservative'  # 🚨 긴급: 승률 5% → Conservative로 전환
 
 STABLE_PAIRS = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA']
 TRADING_PAIRS = STABLE_PAIRS
@@ -345,6 +346,58 @@ def apply_preset(preset_name='balanced'):
     print(f"   가중치: Tech {preset['signal_weights']['technical']:.0%}, "
           f"MTF {preset['signal_weights']['mtf']:.0%}, "
           f"ML {preset['signal_weights']['ml']:.0%}")
+
+# ==========================================
+# 🛡️ 8. 과최적화 방지 설정
+# ==========================================
+
+# 파라미터 단순화 모드
+SIMPLIFICATION_CONFIG = {
+    'enabled': True,  # 과최적화 방지 활성화
+
+    # 핵심 파라미터만 사용 (나머지는 고정)
+    'core_parameters': [
+        'entry_score_threshold',  # 진입 점수
+        'stop_loss',              # 손절
+        'max_positions',          # 최대 포지션 수
+    ],
+
+    # 적응형 학습 (실전 데이터 기반 자동 조정)
+    'adaptive_learning': {
+        'enabled': True,
+        'min_trades': 30,              # 최소 30회 거래 후 조정 시작
+        'learning_rate': 0.1,          # 조정 속도 (보수적)
+        'max_adjustment': 0.2,         # 최대 20% 변경까지만
+        'evaluation_window': 50,       # 최근 50회 거래 기반
+    },
+
+    # 시장 적응형 (시장 상황에 따라 자동 조정)
+    'market_adaptive': {
+        'enabled': True,
+        'bull_market_bonus': 0.1,      # 상승장: 진입 점수 10% 완화
+        'bear_market_penalty': 0.3,    # 하락장: 진입 점수 30% 강화
+        'volatile_stop_multiplier': 1.5,  # 고변동성: 손절 1.5배
+    }
+}
+
+# ==========================================
+# 🌡️ 9. 슬리피지 및 변동성 설정
+# ==========================================
+
+SLIPPAGE_CONFIG = {
+    'enabled': True,
+    'max_slippage_rate': 0.003,     # 최대 허용 슬리피지 0.3%
+    'use_limit_on_high_slippage': True,  # 슬리피지 높으면 지정가 사용
+    'slippage_buffer': 0.001,       # 슬리피지 버퍼 0.1%
+}
+
+VOLATILITY_CONFIG = {
+    'enabled': True,
+    'update_interval': 300,         # 5분마다 변동성 업데이트
+    'lookback_periods': 24,         # 24시간 기준
+    'dynamic_adjustment': True,     # 변동성에 따라 파라미터 자동 조정
+    'pause_on_extreme': True,       # 극단 변동성 시 거래 일시 중단
+}
 
 # 파일 로드 시 자동으로 프리셋 적용
 if __name__ != "__main__":
