@@ -20,6 +20,7 @@ from slippage_manager import SlippageManager  # 🆕 슬리피지 관리자
 from volatility_monitor import VolatilityMonitor  # 🆕 변동성 모니터
 from score_performance_tracker import ScorePerformanceTracker  # 🆕 점수별 성과 추적
 from auto_optimizer import optimize_on_startup  # 🆕 자동 최적화
+from swing_holding_enhancer import SwingHoldingEnhancer  # 🆕 스윙 홀딩 강화
 
 from config import (
     TRADING_PAIRS,
@@ -143,6 +144,12 @@ class TradingBot:
         logger.info("📊 진입 점수별 성과 추적 시스템 활성화")
 
         self.partial_exit_manager = PartialExitManager()
+
+        # 🆕 스윙 홀딩 강화 시스템 추가
+        self.swing_holding = SwingHoldingEnhancer()
+        logger.info("🎯 스윙 홀딩 강화 시스템 활성화")
+        logger.info(f"   최소 보유: {self.swing_holding.min_swing_hold_hours}시간")
+        logger.info(f"   조기 익절 기준: {self.swing_holding.min_profit_for_early_exit:.1%}")
 
         # ✅ iteration 카운터 초기화
         self.iteration = 0
@@ -1183,18 +1190,29 @@ class TradingBot:
                         self.partial_exit_manager.reset_position(symbol)
                         continue
                     
-                    # 3. 추적 손절 체크 (수정 버전)
+                    # 3. 추적 손절 체크 (수정 버전) + 🆕 스윙 홀딩 통합
                     if self.risk_manager.check_trailing_stop(symbol, current_price):
                         # ✅ 현재 수익/손실 상태 확인
                         position = self.risk_manager.positions[symbol]
                         entry_price = position['entry_price']
                         current_pnl_rate = (current_price - entry_price) / entry_price
-                        
+
+                        # 🆕 스윙 홀딩 체크 - 조기 익절 방지
+                        swing_allow, swing_reason = self.swing_holding.should_allow_exit(
+                            symbol, entry_time, current_pnl_rate, exit_reason='trailing_stop'
+                        )
+
+                        if not swing_allow:
+                            logger.info(f"{symbol}: 추적 손절 신호이지만 스윙 홀딩 중")
+                            logger.info(f"   🎯 {swing_reason}")
+                            logger.info(f"   현재 수익: {current_pnl_rate:+.2%}")
+                            continue  # 스윙 홀딩으로 매도 거부
+
                         # 🎯 수익 확정 기준 상향: 2.0% 이상에서만 강제 익절
                         # (기존 1.2%는 너무 낮아서 큰 수익 기회를 놓침)
                         if current_pnl_rate >= 0.020:  # 기존 0.012 → 0.020
                             logger.warning(f"{symbol}: 🎯 목표 수익 달성 (+{current_pnl_rate*100:.2f}%)")
-                            logger.warning(f"   → 추적 손절 조건 충족으로 익절 실행")
+                            logger.warning(f"   → 스윙 홀딩 허용: {swing_reason}")
                             self.execute_trade(symbol, 'sell', current_price)
                             self.partial_exit_manager.reset_position(symbol)
                             self.averaging_manager.clear_history(symbol)
@@ -1225,10 +1243,24 @@ class TradingBot:
                                 logger.info(f"   💧 물타기 진행: {avg_info['count']}/{AVERAGING_DOWN_CONFIG['max_averaging_count']}차")
                                 logger.info(f"   🎯 평단가 낮추기 대기 중")
                     
-                    # 4. 목표 수익 체크 (남은 수량 전량 매도)
+                    # 4. 목표 수익 체크 (남은 수량 전량 매도) + 🆕 스윙 홀딩 통합
                     if self.strategy.check_profit_target(entry_price, current_price):
+                        current_pnl_rate = (current_price - entry_price) / entry_price
+
+                        # 🆕 스윙 홀딩 체크
+                        swing_allow, swing_reason = self.swing_holding.should_allow_exit(
+                            symbol, entry_time, current_pnl_rate, exit_reason='take_profit'
+                        )
+
+                        if not swing_allow:
+                            logger.info(f"{symbol}: 목표 수익 신호이지만 스윙 홀딩 중")
+                            logger.info(f"   🎯 {swing_reason}")
+                            logger.info(f"   현재 수익: {current_pnl_rate:+.2%}")
+                            continue  # 더 큰 수익 대기
+
                         if self.strategy.can_exit_position(symbol):
-                            logger.info(f"{symbol}: 최종 목표 수익 달성")
+                            logger.info(f"{symbol}: 최종 목표 수익 달성 ({current_pnl_rate:+.2%})")
+                            logger.info(f"   → 스윙 홀딩 허용: {swing_reason}")
                             self.execute_trade(symbol, 'sell', current_price)
                             self.partial_exit_manager.reset_position(symbol)
                 
