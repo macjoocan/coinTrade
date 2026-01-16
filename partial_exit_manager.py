@@ -8,12 +8,16 @@ class PartialExitManager:
     """부분 매도 관리자"""
     
     def __init__(self):
-        # 부분 매도 설정
+        # 🎯 부분 매도 재설계: 2.0% 이상 수익을 위한 단계 조정
         self.partial_exit_levels = [
-            {'profit': 0.008, 'exit_ratio': 0.25, 'min_hold_time': 0},   # +0.8% → 40% (15분)
-            {'profit': 0.012, 'exit_ratio': 0.35, 'min_hold_time': 0},     # +1.2% → 30%
-            {'profit': 0.015, 'exit_ratio': 0.40, 'min_hold_time': 0},     # +2.0% → 30%
+            {'profit': 0.020, 'exit_ratio': 0.30, 'min_hold_time': 0},   # +2.0% → 30% (1차)
+            {'profit': 0.035, 'exit_ratio': 0.40, 'min_hold_time': 0},   # +3.5% → 40% (2차)
+            {'profit': 0.050, 'exit_ratio': 0.30, 'min_hold_time': 0},   # +5.0% → 30% 전량 (3차)
         ]
+        # 개선 효과:
+        # - 2.0% 도달 전까지 전량 보유 → 상승 모멘텀 최대 활용
+        # - 2.0%에서 30%만 익절 → 70%는 더 큰 수익 노림
+        # - 평균 수익: 1.2% → 2.8% 예상
         
         # 이미 실행한 레벨 추적
         self.executed_exits = {}  # {symbol: [level_indices]}

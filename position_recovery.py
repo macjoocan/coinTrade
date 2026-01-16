@@ -53,25 +53,31 @@ class PositionRecovery:
     
     def sync_with_exchange(self, saved_positions):
         """거래소 잔고와 동기화"""
-        
+
+        logger.info(f"🔍 저장된 포지션: {list(saved_positions.keys())}")
+
         # 실제 보유 잔고 조회
         actual_balances = {}
         try:
             balances = self.upbit.get_balances()
-            
+            logger.info(f"🔍 거래소 잔고 조회 성공: {len(balances)}개 항목")
+
             for balance in balances:
                 if balance['currency'] != 'KRW':
                     actual_balances[balance['currency']] = {
                         'balance': float(balance['balance']),
                         'avg_buy_price': float(balance['avg_buy_price'])
                     }
+                    logger.info(f"  - {balance['currency']}: {float(balance['balance']):.8f} (평단: {float(balance['avg_buy_price']):,.0f})")
         except Exception as e:
             logger.error(f"잔고 조회 실패: {e}")
             return {}
-        
+
+        logger.info(f"🔍 실제 보유 코인: {list(actual_balances.keys())}")
+
         # 저장된 포지션과 실제 잔고 비교
         recovered_positions = {}
-        
+
         for symbol, actual in actual_balances.items():
             if actual['balance'] > 0:
                 if symbol in saved_positions:
@@ -81,7 +87,7 @@ class PositionRecovery:
                         'quantity': actual['balance'],
                         'entry_time': saved_positions[symbol]['entry_time']
                     }
-                    logger.info(f"포지션 복구: {symbol} - 저장된 정보 사용")
+                    logger.info(f"✅ 포지션 복구: {symbol} - 저장된 정보 사용 (진입가: {saved_positions[symbol]['entry_price']:,.0f})")
                 else:
                     # 새로 발견된 포지션 (평균 매수가 사용)
                     recovered_positions[symbol] = {
@@ -89,6 +95,7 @@ class PositionRecovery:
                         'quantity': actual['balance'],
                         'entry_time': datetime.now().isoformat()
                     }
-                    logger.warning(f"새 포지션 발견: {symbol} - 평균 매수가 사용")
-        
+                    logger.warning(f"⚠️ 새 포지션 발견: {symbol} - 평균 매수가 사용 (평단: {actual['avg_buy_price']:,.0f})")
+
+        logger.info(f"📊 총 복구된 포지션: {len(recovered_positions)}개")
         return recovered_positions

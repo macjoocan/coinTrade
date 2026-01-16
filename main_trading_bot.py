@@ -171,14 +171,16 @@ class TradingBot:
     def recover_existing_positions(self):
         """기존 포지션 복구"""
         logger.info("="*50)
-        logger.info("기존 포지션 확인 중...")
-        
+        logger.info("🔄 기존 포지션 복구 시작...")
+
         # 1. 저장된 포지션 로드
         saved_positions = self.position_recovery.load_positions()
-        
+        logger.info(f"📁 저장된 포지션 로드: {len(saved_positions)}개")
+
         # 2. 거래소와 동기화
         recovered = self.position_recovery.sync_with_exchange(saved_positions)
-        
+        logger.info(f"🔄 거래소 동기화 완료: {len(recovered)}개 복구")
+
         if recovered:
             # 3. 복구된 포지션을 리스크 매니저에 등록
             for symbol, pos in recovered.items():
@@ -189,13 +191,17 @@ class TradingBot:
                     'entry_time': datetime.fromisoformat(pos['entry_time']) if isinstance(pos['entry_time'], str) else pos['entry_time'],
                     'highest_price': pos['entry_price']
                 }
-                
+
                 # 전략에도 등록
                 self.strategy.position_entry_time[symbol] = time.time()
-                
-                logger.info(f"✅ 포지션 복구: {symbol} @ {pos['entry_price']:,.0f}")
-        
-        logger.info(f"복구 완료: {len(recovered)}개 포지션")
+
+                logger.info(f"✅ 리스크 매니저 등록 완료: {symbol} @ {pos['entry_price']:,.0f} (수량: {pos['quantity']:.8f})")
+
+            logger.info(f"📊 현재 리스크 매니저 포지션: {list(self.risk_manager.positions.keys())}")
+        else:
+            logger.info("⚠️ 복구된 포지션 없음")
+
+        logger.info(f"✅ 복구 완료: {len(recovered)}개 포지션")
         logger.info("="*50)
     
     def save_current_positions(self):
@@ -1092,15 +1098,20 @@ class TradingBot:
     
     def check_exit_conditions(self):
             """개선된 청산 조건 체크 - 배치 API 호출 최적화"""
-            
+
             MIN_ORDER_VALUE = UPBIT_CONFIG['min_order_value']
-            
+
             # 소액 포지션 경고 시간 추적
             if not hasattr(self, 'last_small_position_warning'):
                 self.last_small_position_warning = {}
-            
+
             # 배치 가격 조회 (최적화!)
             symbols = list(self.risk_manager.positions.keys())
+
+            # 🔍 디버깅: 포지션 체크 시작
+            if symbols:
+                logger.info(f"🔍 청산 조건 체크 시작: {len(symbols)}개 포지션 ({', '.join(symbols)})")
+
             if not symbols:
                 return
             
@@ -1115,17 +1126,22 @@ class TradingBot:
                 try:
                     ticker = f"KRW-{symbol}"
                     current_price = current_prices.get(ticker)
-                    
+
                     if not current_price:
+                        logger.warning(f"⚠️ {symbol}: 현재가 조회 실패")
                         continue
-                    
+
                     position = self.risk_manager.positions[symbol]
                     entry_price = position['entry_price']
                     entry_time = position['entry_time']
-                    
+
                     # ✅ 현재 보유 수량 먼저 조회
                     current_quantity = self.get_position_quantity(symbol)
-                    
+
+                    # 🔍 디버깅: 포지션 상태 출력
+                    pnl_rate = (current_price - entry_price) / entry_price
+                    logger.info(f"  📊 {symbol}: 진입가 {entry_price:,.0f} → 현재가 {current_price:,.0f} ({pnl_rate:+.2%}) | 수량: {current_quantity:.8f}")
+
                     # ✅ 소액 포지션 체크 (최우선)
                     current_value = current_price * current_quantity
                     if current_value < MIN_ORDER_VALUE:

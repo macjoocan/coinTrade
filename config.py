@@ -213,12 +213,12 @@ ADAPTIVE_PRESET_CONFIG = {
 # 🎛️ 5. 전략 프리셋 (여기가 실제 설정을 지배합니다!)
 # ==========================================
 STRATEGY_PRESETS = {
-    # 🛡️ 보수적 전략 (방어 중심) - 🎯 현실적 조정: 실제 거래 가능하도록
+    # 🛡️ 보수적 전략 (방어 중심) - 🎯 3단계 최적화 1단계: 5.5점
     'conservative': {
-        'entry_score_threshold': 6.0,       # 🎯 현실적: 7.5 → 6.0 (너무 높으면 거래 없음)
-        'mtf_min_score': 6.5,               # 🎯 현실적: 8.0 → 6.5
-        'mtf_min_consensus': 0.75,          # 🎯 현실적: 0.85 → 0.75
-        'ml_min_probability': 0.70,         # 🎯 현실적: 0.80 → 0.70
+        'entry_score_threshold': 5.5,       # 🎯 1단계: 6.0 → 5.5 (거래 빈도 확보)
+        'mtf_min_score': 6.0,               # 🎯 1단계: 6.5 → 6.0
+        'mtf_min_consensus': 0.70,          # 🎯 1단계: 0.75 → 0.70
+        'ml_min_probability': 0.65,         # 🎯 1단계: 0.70 → 0.65
 
         'signal_weights': {
             'technical': 0.25,
