@@ -12,14 +12,14 @@ UPBIT_CONFIG = {
     'api_rate_limit': 10,            # 초당 API 호출 제한
 }
 
-# 전략 기본 설정
+# 전략 기본 설정 - 🎯 스윙 트레이딩 최적화
 STRATEGY_CONFIG = {
-    'min_profit_target': 0.025,     # 목표 수익률 2.5% (기존 2% → 개선)
-    'max_trades_per_day': 50,        # 일일 최대 거래 횟수
-    'min_hold_time': 600,            # 최소 보유 시간 (초)
+    'min_profit_target': 0.030,      # 목표 수익률 3.0% (스윙: 2.5% → 3.0%)
+    'max_trades_per_day': 20,        # 일일 최대 거래 횟수 (스윙: 50 → 20)
+    'min_hold_time': 43200,          # 최소 보유 시간 12시간 (스윙: 600초 → 43200초)
     'status_print_interval': 300,    # 상태 출력 간격 (5분)
     'position_save_interval': 60,    # 포지션 저장 간격 (1분)
-    'trade_cooldown_minutes': 60,
+    'trade_cooldown_minutes': 120,   # 거래 쿨다운 2시간 (스윙: 60분 → 120분)
 }
 
 # ==========================================
@@ -397,6 +397,20 @@ VOLATILITY_CONFIG = {
     'lookback_periods': 24,         # 24시간 기준
     'dynamic_adjustment': True,     # 변동성에 따라 파라미터 자동 조정
     'pause_on_extreme': True,       # 극단 변동성 시 거래 일시 중단
+}
+
+# ==========================================
+# 🎯 10. 스윙 홀딩 설정 (Phase 1)
+# ==========================================
+
+SWING_HOLDING_CONFIG = {
+    'enabled': True,                      # 스윙 홀딩 활성화
+    'min_swing_hold_hours': 12,           # 최소 보유 12시간
+    'ideal_swing_hold_hours': 24,         # 이상적 보유 24시간
+    'min_profit_for_early_exit': 0.025,   # 조기 익절 기준 2.5%
+    'good_profit_threshold': 0.030,       # 좋은 수익 3.0%
+    'excellent_profit_threshold': 0.050,  # 탁월한 수익 5.0%
+    'stop_loss_threshold': -0.015,        # 손절 -1.5% (즉시 허용)
 }
 
 # 파일 로드 시 자동으로 프리셋 적용

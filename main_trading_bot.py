@@ -34,7 +34,8 @@ from config import (
     apply_preset,  # ✅ 함수 import
     ACTIVE_PRESET,  # ✅ 활성 프리셋 import
     SLIPPAGE_CONFIG,  # 🆕 슬리피지 설정
-    VOLATILITY_CONFIG  # 🆕 변동성 설정
+    VOLATILITY_CONFIG,  # 🆕 변동성 설정
+    SWING_HOLDING_CONFIG  # 🆕 스윙 홀딩 설정
 )
 
 # 한글/이모지 인코딩 문제 해결
@@ -146,10 +147,12 @@ class TradingBot:
         self.partial_exit_manager = PartialExitManager()
 
         # 🆕 스윙 홀딩 강화 시스템 추가
-        self.swing_holding = SwingHoldingEnhancer()
+        self.swing_holding = SwingHoldingEnhancer(SWING_HOLDING_CONFIG)
         logger.info("🎯 스윙 홀딩 강화 시스템 활성화")
         logger.info(f"   최소 보유: {self.swing_holding.min_swing_hold_hours}시간")
+        logger.info(f"   이상적 보유: {self.swing_holding.ideal_swing_hold_hours}시간")
         logger.info(f"   조기 익절 기준: {self.swing_holding.min_profit_for_early_exit:.1%}")
+        logger.info(f"   좋은 수익 기준: {self.swing_holding.good_profit_threshold:.1%}")
 
         # ✅ iteration 카운터 초기화
         self.iteration = 0
