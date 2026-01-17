@@ -1788,32 +1788,38 @@ def test_run(bot):
 
 # 실행 스크립트
 if __name__ == "__main__":
-    import os
-    from dotenv import load_dotenv
-    
-    # 환경변수 로드
-    load_dotenv()
-    
-    access_key = os.getenv('UPBIT_ACCESS_KEY')
-    secret_key = os.getenv('UPBIT_SECRET_KEY')
-    
-    if not access_key or not secret_key:
-        print("❌ API 키를 설정해주세요.")
+    from config import API_ACCESS_KEY, API_SECRET_KEY, print_config_summary
+
+    # settings.json에서 API 키 로드
+    access_key = API_ACCESS_KEY
+    secret_key = API_SECRET_KEY
+
+    if not access_key or not secret_key or access_key == 'YOUR_ACCESS_KEY_HERE':
+        print("="*60)
+        print("[ERROR] API 키가 설정되지 않았습니다!")
+        print("="*60)
         print("\n설정 방법:")
-        print("1. .env 파일 생성")
-        print("2. UPBIT_ACCESS_KEY=your_key")
-        print("3. UPBIT_SECRET_KEY=your_secret")
+        print("1. settings.json 파일을 열어주세요")
+        print("2. api.access_key 에 업비트 Access Key 입력")
+        print("3. api.secret_key 에 업비트 Secret Key 입력")
+        print("4. 저장 후 다시 실행")
+        print("="*60)
+        input("\n아무 키나 누르면 종료됩니다...")
         exit(1)
-    
+
     print("="*60)
-    print("🤖 업비트 자동매매 봇 v2.0 (개선판)")
+    print("CoinTrade Bot v2.1 (Swing Trading Edition)")
     print("="*60)
-    print("\n주요 개선사항:")
-    print("✅ 거래 빈도 최적화 - 일 10회 제한, 최소 1시간 홀딩")
-    print("✅ 진입 조건 강화 - 7점 이상 스코어링 시스템")
-    print("✅ 리스크 관리 강화 - Kelly Criterion, 추적손절, 연속손실 관리")
-    print("✅ 실제 체결가 반영 - 정확한 PnL 계산")
-    print("✅ 자동 프리셋 전환 - 시장 상황에 따라 자동 조정")
+
+    # 설정 요약 출력
+    print_config_summary()
+
+    print("주요 기능:")
+    print("- 스윙 트레이딩 최적화 (최소 12시간 보유)")
+    print("- 3단계 진입 점수 최적화")
+    print("- 조기 익절 방지 시스템")
+    print("- 자동 프리셋 전환")
+    print("- 설정 외부화 (settings.json)")
     
     # 봇 초기화
     bot = TradingBot(access_key, secret_key)

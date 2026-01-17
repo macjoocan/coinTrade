@@ -1,0 +1,82 @@
+{
+  "_comment": "CoinTrade Bot 설정 파일 - 이 파일을 수정하여 봇 설정을 변경하세요",
+  "_version": "1.0.0",
+  "_last_updated": "2026-01-17",
+
+  "api": {
+    "_comment": "업비트 API 키 (필수)",
+    "access_key": "qhRkzE8RudTxiIz5CWC9RP3lDMAeiFJSxHrmKXpk",
+    "secret_key": "jPvG8LlAwQErcxxDsixcszrGjvLAmxoL681iRp9O"
+  },
+
+  "trading": {
+    "_comment": "거래 대상 코인 목록",
+    "pairs": ["BTC", "ETH", "XRP", "SOL", "DOGE", "ADA", "AVAX", "LINK", "DOT", "MATIC"],
+    "stable_pairs": ["BTC", "ETH", "XRP"]
+  },
+
+  "strategy": {
+    "_comment": "전략 설정",
+    "min_profit_target": 0.030,
+    "max_trades_per_day": 20,
+    "min_hold_time_hours": 12,
+    "trade_cooldown_minutes": 120
+  },
+
+  "risk": {
+    "_comment": "리스크 관리",
+    "max_position_size": 0.20,
+    "stop_loss": 0.015,
+    "daily_loss_limit": 0.03,
+    "max_positions": 1
+  },
+
+  "entry": {
+    "_comment": "진입 조건",
+    "score_threshold": 5.5,
+    "mtf_min_score": 6.0,
+    "mtf_min_consensus": 0.70,
+    "ml_min_probability": 0.65
+  },
+
+  "swing_holding": {
+    "_comment": "스윙 홀딩 설정",
+    "enabled": true,
+    "min_hold_hours": 12,
+    "ideal_hold_hours": 24,
+    "min_profit_for_early_exit": 0.025,
+    "good_profit_threshold": 0.030,
+    "excellent_profit_threshold": 0.050
+  },
+
+  "features": {
+    "_comment": "기능 활성화/비활성화",
+    "mtf_analysis": true,
+    "ml_prediction": true,
+    "slippage_protection": true,
+    "volatility_monitor": true,
+    "averaging_down": true,
+    "adaptive_preset": true
+  },
+
+  "averaging_down": {
+    "_comment": "물타기 설정",
+    "enabled": true,
+    "trigger_loss_rate": -0.03,
+    "max_count": 2,
+    "amount_ratio": 0.5
+  },
+
+  "preset": {
+    "_comment": "활성 프리셋: conservative, balanced, aggressive",
+    "active": "conservative"
+  },
+
+  "advanced": {
+    "_comment": "고급 설정 (주의해서 변경)",
+    "slippage_max_rate": 0.003,
+    "volatility_update_interval": 300,
+    "position_save_interval": 60,
+    "status_print_interval": 300
+  }
+}
