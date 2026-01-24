@@ -303,11 +303,8 @@ class ImprovedStrategy:
             signal_scores[key] * self.signal_weights[key]
             for key in signal_scores.keys()
         ) * 10  # 0~10 스케일로 변환
-        
-        # 7. 시장 상황에 따른 기준 조정
-        market_condition = self.market_analyzer.analyze_market(TRADING_PAIRS)
-        base_threshold = ADVANCED_CONFIG.get('entry_score_threshold', 6)
-        
+
+        # 7. 시장 상황에 따른 기준 조정 (비주류 코인 패널티는 위에서 이미 적용됨)
         market_adjustments = SIGNAL_INTEGRATION_CONFIG.get('market_adjustment', {
             'bullish': 0.0,
             'neutral': 0.0,
@@ -359,11 +356,13 @@ class ImprovedStrategy:
     def record_trade(self, symbol, trade_type, pnl=0):
         """🎯 손익비 개선: 거래 결과 추적 추가"""
         today = datetime.now().strftime('%Y-%m-%d')
-        self.daily_trades[today] += 1
 
+        # ✅ 매수만 일일 거래 횟수에 카운트 (청산은 제외)
         if trade_type == 'buy':
+            self.daily_trades[today] += 1
             self.position_entry_time[symbol] = time.time()
         elif trade_type == 'sell':
+            # 매도(청산)는 거래 횟수에 카운트하지 않음
             if symbol in self.position_entry_time:
                 del self.position_entry_time[symbol]
             self.trade_cooldown[symbol] = time.time()

@@ -10,11 +10,14 @@ from rich.live import Live
 from rich.layout import Layout
 from rich.panel import Panel
 from rich.progress import Progress, BarColumn, TextColumn
-from config import TRADING_PAIRS, RISK_CONFIG
-from collections import deque
-from trade_history_manager import TradeHistoryManager  # ✅ 추가
 from config import TRADING_PAIRS, RISK_CONFIG, apply_preset, ACTIVE_PRESET, UPBIT_CONFIG
+from collections import deque
+from trade_history_manager import TradeHistoryManager
 import logging
+
+# 로거 설정
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 apply_preset(ACTIVE_PRESET)
 console = Console()
@@ -103,8 +106,8 @@ class MarketDataCache:
                 self.rsi_cache[cache_key] = current_rsi
                 self.last_update[cache_key] = now
                 return current_rsi
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"RSI calculation failed for {ticker}: {e}")
         return 50.0 # 기본값
     
     def _fetch_price(self, ticker):
@@ -115,8 +118,8 @@ class MarketDataCache:
                 self.cache[ticker] = price
                 self.last_update[ticker] = datetime.now()
                 return price
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Price fetch failed for {ticker}: {e}")
         return self.cache.get(ticker, 0)
 
     def _calculate_change(self, ticker):
@@ -132,11 +135,11 @@ class MarketDataCache:
                 change_update_key = f"{ticker}_change_time"
                 self.daily_change_cache[change_key] = change_rate
                 self.last_update[change_update_key] = datetime.now()
-                
+
                 return change_rate
-        except:
-            pass
-        
+        except Exception as e:
+            logger.debug(f"Change rate calculation failed for {ticker}: {e}")
+
         change_key = f"{ticker}_change"
         return self.daily_change_cache.get(change_key, 0)
     
@@ -175,8 +178,9 @@ class MarketDataCache:
                     
                     if i % 5 == 0:
                         time.sleep(0.1)
-                    
-                except:
+
+                except Exception as e:
+                    logger.debug(f"Top movers fetch failed for {symbol}: {e}")
                     continue
             
             market_data.sort(key=lambda x: x['change'], reverse=True)
@@ -204,12 +208,26 @@ class TradingDashboard:
         # ✅✅✅ 캐시 추가 ✅✅✅
         self.recent_trades_cache = []
         self.last_trades_update = datetime.now() - timedelta(seconds=60)
-        self.trades_cache_interval = 30  # 30초
+        self.trades_cache_interval = 5  # 5초 (빠른 갱신)
         
         self.stats_cache = {'24h': None, '7d': None, '30d': None}
         self.last_stats_update = datetime.now() - timedelta(minutes=5)
         self.stats_cache_interval = 300  # 5분
-        
+
+        # MTF/ML 패널 캐시 (API 호출 최적화)
+        self.mtf_cache = None
+        self.last_mtf_update = datetime.now() - timedelta(seconds=60)
+        self.mtf_cache_interval = 30  # 30초
+
+        self.ml_cache = None
+        self.last_ml_update = datetime.now() - timedelta(seconds=60)
+        self.ml_cache_interval = 30  # 30초
+
+        # 동적 코인 캐시
+        self.dynamic_coins_cache = None
+        self.last_dynamic_update = datetime.now() - timedelta(seconds=60)
+        self.dynamic_cache_interval = 60  # 60초
+
         self.api_calls = deque(maxlen=100)
         self.dynamic_coins = []
         self.setup_layout()
@@ -346,15 +364,22 @@ class TradingDashboard:
         )
 
     def get_dynamic_coins_panel(self):
-        """동적 코인 상태 패널"""
+        """동적 코인 상태 패널 (캐시 적용)"""
         lines = []
-        
+
         try:
-            from momentum_scanner_improved import ImprovedMomentumScanner
-            scanner = ImprovedMomentumScanner()
-            
-            dynamic_coins = scanner.scan_top_performers(top_n=3)
-            
+            now = datetime.now()
+            elapsed = (now - self.last_dynamic_update).total_seconds()
+
+            # 60초마다만 스캔 실행
+            if elapsed >= self.dynamic_cache_interval or self.dynamic_coins_cache is None:
+                from momentum_scanner_improved import ImprovedMomentumScanner
+                scanner = ImprovedMomentumScanner()
+                self.dynamic_coins_cache = scanner.scan_top_performers(top_n=3)
+                self.last_dynamic_update = now
+
+            dynamic_coins = self.dynamic_coins_cache
+
             if dynamic_coins:
                 lines.append("[bold yellow]🔥 Momentum Coins[/bold yellow]")
                 lines.append("")
@@ -376,7 +401,8 @@ class TradingDashboard:
                                 f"{coin}: [{color}]{change:+.1f}%[/{color}] "
                                 f"[dim]({volume_str})[/dim]"
                             )
-                    except:
+                    except Exception as e:
+                        logger.debug(f"Dynamic coin data fetch failed for {coin}: {e}")
                         lines.append(f"{coin}: [dim]데이터 없음[/dim]")
             else:
                 lines.append("[dim]모멘텀 코인 없음[/dim]")
@@ -394,18 +420,24 @@ class TradingDashboard:
         )
     
     def get_mtf_analysis_panel(self):
-        """멀티 타임프레임 분석 패널"""
+        """멀티 타임프레임 분석 패널 (캐시 적용)"""
         try:
-            from multi_timeframe_analyzer import MultiTimeframeAnalyzer
-            
-            mtf = MultiTimeframeAnalyzer()
-            symbol = TRADING_PAIRS[0]
-            
-            analysis = mtf.analyze(symbol)
-            
+            symbol = TRADING_PAIRS[0]  # symbol을 먼저 정의
+            now = datetime.now()
+            elapsed = (now - self.last_mtf_update).total_seconds()
+
+            # 캐시 체크 - 30초마다만 업데이트
+            if elapsed >= self.mtf_cache_interval or self.mtf_cache is None:
+                from multi_timeframe_analyzer import MultiTimeframeAnalyzer
+                mtf = MultiTimeframeAnalyzer()
+                self.mtf_cache = mtf.analyze(symbol)
+                self.last_mtf_update = now
+
+            analysis = self.mtf_cache
+
             if not analysis:
                 return Panel("Loading MTF...", title="📈 Multi-Timeframe", border_style="blue")
-            
+
             lines = []
             lines.append(f"[bold cyan]{symbol} Analysis[/bold cyan]")
             lines.append("")
@@ -444,26 +476,33 @@ class TradingDashboard:
             )
     
     def get_ml_prediction_panel(self):
-        """ML 예측 패널"""
+        """ML 예측 패널 (캐시 적용)"""
         try:
-            from ml_signal_generator import MLSignalGenerator
-            
-            ml = MLSignalGenerator()
-            
-            if not ml.is_trained:
-                return Panel(
-                    "[yellow]Model not trained yet[/yellow]\n"
-                    "[dim]Training on first run...[/dim]",
-                    title="🤖 ML Prediction",
-                    border_style="magenta"
-                )
-            
-            symbol = TRADING_PAIRS[0]
-            prediction = ml.predict(symbol)
-            
+            symbol = TRADING_PAIRS[0]  # symbol을 먼저 정의
+            now = datetime.now()
+            elapsed = (now - self.last_ml_update).total_seconds()
+
+            # 캐시 체크 - 30초마다만 업데이트
+            if elapsed >= self.ml_cache_interval or self.ml_cache is None:
+                from ml_signal_generator import MLSignalGenerator
+                ml = MLSignalGenerator()
+
+                if not ml.is_trained:
+                    return Panel(
+                        "[yellow]Model not trained yet[/yellow]\n"
+                        "[dim]Training on first run...[/dim]",
+                        title="🤖 ML Prediction",
+                        border_style="magenta"
+                    )
+
+                self.ml_cache = ml.predict(symbol)
+                self.last_ml_update = now
+
+            prediction = self.ml_cache
+
             if not prediction:
                 return Panel("Loading ML...", title="🤖 ML Prediction", border_style="magenta")
-            
+
             lines = []
             lines.append(f"[bold magenta]{symbol} Prediction[/bold magenta]")
             lines.append("")
@@ -505,8 +544,8 @@ class TradingDashboard:
             fee_rate = UPBIT_CONFIG.get('fee_rate', 0.0005) #
             now = datetime.now()
             
-            # 성능 최적화: 5초 주기로 파일 읽기
-            if (now - getattr(self, 'last_pos_file_read', datetime.min)).total_seconds() >= 5:
+            # 포지션 파일 읽기: 2초 주기 (빠른 갱신)
+            if (now - getattr(self, 'last_pos_file_read', datetime.min)).total_seconds() >= 2:
                 if os.path.exists('active_positions.json'):
                     with open('active_positions.json', 'r') as f:
                         data = json.load(f)

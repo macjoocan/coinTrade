@@ -47,17 +47,35 @@ def build_exe():
         # 아이콘 (있으면 추가)
         # "--icon", "icon.ico",
 
+        # pyupbit 및 의존성 수집
+        "--collect-all", "pyupbit",
+        "--collect-all", "pandas",
+        "--collect-all", "numpy",
+        "--collect-all", "sklearn",
+
         # 숨겨진 import 추가
         "--hidden-import", "pyupbit",
+        "--hidden-import", "pyupbit.quotation_api",
+        "--hidden-import", "pyupbit.exchange_api",
         "--hidden-import", "pandas",
         "--hidden-import", "numpy",
         "--hidden-import", "sklearn",
         "--hidden-import", "sklearn.ensemble",
+        "--hidden-import", "sklearn.ensemble._forest",
         "--hidden-import", "sklearn.preprocessing",
+        "--hidden-import", "sklearn.preprocessing._data",
+        "--hidden-import", "sklearn.utils._cython_blas",
+        "--hidden-import", "sklearn.neighbors._typedefs",
+        "--hidden-import", "sklearn.neighbors._quad_tree",
+        "--hidden-import", "sklearn.tree._utils",
         "--hidden-import", "requests",
         "--hidden-import", "websocket",
+        "--hidden-import", "websockets",
         "--hidden-import", "jwt",
+        "--hidden-import", "PyJWT",
         "--hidden-import", "uuid",
+        "--hidden-import", "dateutil",
+        "--hidden-import", "urllib3",
 
         # 데이터 파일 추가 (없어도 됨 - 외부에서 로드)
         # "--add-data", "settings.json;.",
@@ -95,6 +113,29 @@ def create_distribution():
     """배포용 폴더 생성"""
     dist_folder = "CoinTradeBot_Release"
 
+    # 보존할 파일 목록
+    preserve_files = [
+        "settings.json",
+        "active_positions.json",
+        "trade_history.json",
+        "ml_model_random_forest.pkl",
+        "ml_scaler.pkl",
+        "score_performance.json",
+        "trading_bot.log"
+    ]
+
+    # 기존 파일들 백업
+    backups = {}
+    for filename in preserve_files:
+        filepath = os.path.join(dist_folder, filename)
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'rb') as f:
+                    backups[filename] = f.read()
+                print(f"[INFO] 기존 {filename} 발견 - 보존됩니다")
+            except Exception as e:
+                print(f"[WARN] {filename} 백업 실패: {e}")
+
     # 기존 폴더 삭제
     if os.path.exists(dist_folder):
         shutil.rmtree(dist_folder)
@@ -104,8 +145,21 @@ def create_distribution():
     # exe 복사
     shutil.copy("dist/CoinTradeBot.exe", dist_folder)
 
-    # settings.json 복사 (API 키 제거)
-    create_clean_settings(os.path.join(dist_folder, "settings.json"))
+    # 백업된 파일들 복원
+    for filename, content in backups.items():
+        filepath = os.path.join(dist_folder, filename)
+        try:
+            with open(filepath, 'wb') as f:
+                f.write(content)
+            print(f"[OK] 기존 {filename} 복원 완료")
+        except Exception as e:
+            print(f"[WARN] {filename} 복원 실패: {e}")
+
+    # settings.json이 없으면 새로 생성
+    settings_path = os.path.join(dist_folder, "settings.json")
+    if not os.path.exists(settings_path):
+        create_clean_settings(settings_path)
+        print(f"[OK] 새 settings.json 생성 완료")
 
     # README 생성
     create_readme(dist_folder)
@@ -127,7 +181,7 @@ def create_clean_settings(path):
 
     settings = {
         "_comment": "CoinTrade Bot 설정 파일 - 이 파일을 수정하여 봇 설정을 변경하세요",
-        "_version": "1.0.0",
+        "_version": "2.1.0",
 
         "api": {
             "_comment": "업비트 API 키 (필수) - 아래에 본인의 API 키를 입력하세요",
@@ -175,6 +229,18 @@ def create_clean_settings(path):
             "excellent_profit_threshold": 0.050
         },
 
+        "adaptive_score": {
+            "_comment": "적응형 점수 자동 조정 (히스토리 기반)",
+            "enabled": True,
+            "analysis_interval_hours": 4,
+            "min_trades": 10,
+            "lookback_days": 7,
+            "target_win_rate": 0.50,
+            "max_adjustment": 0.5,
+            "score_min": 4.0,
+            "score_max": 8.0
+        },
+
         "features": {
             "_comment": "기능 활성화/비활성화",
             "mtf_analysis": True,
@@ -203,7 +269,7 @@ def create_clean_settings(path):
             "slippage_max_rate": 0.003,
             "volatility_update_interval": 300,
             "position_save_interval": 60,
-            "status_print_interval": 300
+            "status_print_interval": 60
         }
     }
 

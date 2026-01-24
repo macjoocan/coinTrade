@@ -1,4 +1,13 @@
 # main_trading_bot.py - 수정 완료 버전
+
+# sklearn 경고 억제 (가장 먼저 실행)
+import warnings
+import os
+os.environ['LOKY_MAX_CPU_COUNT'] = '4'
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', module='sklearn')
+
 import pyupbit
 import time
 import logging
@@ -21,6 +30,7 @@ from volatility_monitor import VolatilityMonitor  # 🆕 변동성 모니터
 from score_performance_tracker import ScorePerformanceTracker  # 🆕 점수별 성과 추적
 from auto_optimizer import optimize_on_startup  # 🆕 자동 최적화
 from swing_holding_enhancer import SwingHoldingEnhancer  # 🆕 스윙 홀딩 강화
+from adaptive_score_manager import AdaptiveScoreManager  # 🆕 적응형 점수 관리
 
 from config import (
     TRADING_PAIRS,
@@ -35,7 +45,9 @@ from config import (
     ACTIVE_PRESET,  # ✅ 활성 프리셋 import
     SLIPPAGE_CONFIG,  # 🆕 슬리피지 설정
     VOLATILITY_CONFIG,  # 🆕 변동성 설정
-    SWING_HOLDING_CONFIG  # 🆕 스윙 홀딩 설정
+    SWING_HOLDING_CONFIG,  # 🆕 스윙 홀딩 설정
+    ADAPTIVE_SCORE_CONFIG,  # 🆕 적응형 점수 설정
+    ADAPTIVE_TAKE_PROFIT_CONFIG  # 🆕 시장 연동 익절 설정
 )
 
 # 한글/이모지 인코딩 문제 해결
@@ -178,6 +190,95 @@ class TradingBot:
             logger.error(f"자동 최적화 실패: {e}")
         logger.info("")
 
+        # 🆕 적응형 점수 관리자 초기화 (n시간마다 자동 조정)
+        if ADAPTIVE_SCORE_CONFIG['enabled']:
+            self.adaptive_score_manager = AdaptiveScoreManager(
+                analysis_interval_hours=ADAPTIVE_SCORE_CONFIG['analysis_interval_hours']
+            )
+            # config 설정 동기화
+            self.adaptive_score_manager.config.update({
+                'min_trades_for_analysis': ADAPTIVE_SCORE_CONFIG['min_trades_for_analysis'],
+                'lookback_days': ADAPTIVE_SCORE_CONFIG['lookback_days'],
+                'target_win_rate': ADAPTIVE_SCORE_CONFIG['target_win_rate'],
+                'max_adjustment': ADAPTIVE_SCORE_CONFIG['max_adjustment'],
+                'score_min': ADAPTIVE_SCORE_CONFIG['score_min'],
+                'score_max': ADAPTIVE_SCORE_CONFIG['score_max'],
+            })
+            # 현재 설정된 점수와 동기화
+            self.adaptive_score_manager.set_current_score(ADVANCED_CONFIG['entry_score_threshold'])
+
+            # 백그라운드 모니터링 시작 (자동 점수 조정)
+            self.adaptive_score_manager.start_background_monitor(
+                config_updater=self._update_entry_threshold
+            )
+            logger.info(f"🔄 적응형 점수 자동 조정 시스템 활성화 ({ADAPTIVE_SCORE_CONFIG['analysis_interval_hours']}시간 주기)")
+        else:
+            self.adaptive_score_manager = None
+            logger.info("🔄 적응형 점수 자동 조정 시스템 비활성화")
+
+        # 🆕 시장 연동 익절 시스템 초기화
+        if ADAPTIVE_TAKE_PROFIT_CONFIG['enabled']:
+            logger.info("🎯 시장 연동 익절 시스템 활성화")
+            logger.info(f"   상승장: {ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments']['bullish']:.1%}")
+            logger.info(f"   중립장: {ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments']['neutral']:.1%}")
+            logger.info(f"   하락장: {ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments']['bearish']:.1%}")
+            logger.info(f"   최소 수익선: {ADAPTIVE_TAKE_PROFIT_CONFIG['min_profit_floor']:.1%}")
+        else:
+            logger.info("🎯 시장 연동 익절 시스템 비활성화")
+
+        # 현재 시장 상황 캐시 (익절 조정용)
+        self.current_market_condition = 'neutral'
+        self.last_market_check_for_tp = 0
+
+    def _update_entry_threshold(self, new_score):
+        """적응형 점수 관리자로부터 점수 업데이트 콜백"""
+        old_score = ADVANCED_CONFIG['entry_score_threshold']
+        ADVANCED_CONFIG['entry_score_threshold'] = new_score
+
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info("🎯 진입 점수 자동 업데이트 적용")
+        logger.info(f"   이전: {old_score} → 현재: {new_score}")
+        logger.info("=" * 60)
+        logger.info("")
+
+    def get_adaptive_take_profit_target(self):
+        """시장 상황에 따른 동적 익절 목표 반환"""
+        if not ADAPTIVE_TAKE_PROFIT_CONFIG['enabled']:
+            return STRATEGY_CONFIG['min_profit_target']
+
+        # 시장 상황 업데이트 (60초마다)
+        current_time = time.time()
+        if current_time - self.last_market_check_for_tp > 60:
+            try:
+                from market_condition_check import MarketAnalyzer
+                market_analyzer = MarketAnalyzer()
+                market_condition = market_analyzer.analyze_market(TRADING_PAIRS)
+
+                if market_condition != self.current_market_condition:
+                    old_condition = self.current_market_condition
+                    self.current_market_condition = market_condition
+
+                    old_target = ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments'].get(old_condition, 0.025)
+                    new_target = ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments'].get(market_condition, 0.025)
+
+                    if ADAPTIVE_TAKE_PROFIT_CONFIG['log_adjustments']:
+                        logger.info(f"🎯 시장 변화 감지: {old_condition} → {market_condition}")
+                        logger.info(f"   익절 목표 조정: {old_target:.1%} → {new_target:.1%}")
+
+                self.last_market_check_for_tp = current_time
+            except Exception as e:
+                logger.error(f"시장 상황 확인 실패: {e}")
+
+        # 시장 상황에 맞는 익절 목표 반환
+        target = ADAPTIVE_TAKE_PROFIT_CONFIG['market_adjustments'].get(
+            self.current_market_condition,
+            ADAPTIVE_TAKE_PROFIT_CONFIG['base_target']
+        )
+
+        # 최소 수익선 보장
+        return max(target, ADAPTIVE_TAKE_PROFIT_CONFIG['min_profit_floor'])
+
     def recover_existing_positions(self):
         """기존 포지션 복구"""
         logger.info("="*50)
@@ -293,6 +394,136 @@ class TradingBot:
             
         except Exception as e:
             logger.error(f"동기화 실패: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+    def detect_manual_trades(self):
+        """수동 거래 감지 및 기록"""
+        logger.info("🔍 수동 거래 감지 시작...")
+
+        try:
+            # 기존 거래 기록 로드
+            existing_trades = self.trade_history._load_history()
+            existing_uuids = set()
+
+            # 기존 기록의 UUID 수집
+            for trade in existing_trades:
+                if 'order_uuid' in trade:
+                    existing_uuids.add(trade['order_uuid'])
+
+            manual_trade_count = 0
+
+            # 모든 거래 대상 코인에 대해 체결 내역 조회
+            all_symbols = set(TRADING_PAIRS + list(self.risk_manager.positions.keys()))
+
+            for symbol in all_symbols:
+                ticker = f"KRW-{symbol}"
+
+                try:
+                    # 완료된 주문 조회 (최근 100개)
+                    orders = self.upbit.get_order(ticker, state='done', limit=100)
+
+                    if not orders:
+                        continue
+
+                    for order in orders:
+                        order_uuid = order.get('uuid')
+
+                        # 이미 기록된 거래는 스킵
+                        if order_uuid in existing_uuids:
+                            continue
+
+                        # 수동 거래로 판단 - 기록에 추가
+                        side = order.get('side')  # 'bid' (매수) or 'ask' (매도)
+
+                        if side == 'ask':  # 매도 거래만 기록 (기존 형식과 맞추기 위해)
+                            executed_volume = float(order.get('executed_volume', 0))
+                            trades_list = order.get('trades', [])
+
+                            if executed_volume > 0 and trades_list:
+                                # 평균 체결가 계산
+                                total_funds = sum(float(t.get('funds', 0)) for t in trades_list)
+                                total_volume = sum(float(t.get('volume', 0)) for t in trades_list)
+                                avg_price = total_funds / total_volume if total_volume > 0 else 0
+
+                                # 거래 시간
+                                created_at = order.get('created_at', '')
+                                if created_at:
+                                    trade_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                                else:
+                                    trade_time = datetime.now()
+
+                                # 수수료 계산
+                                paid_fee = float(order.get('paid_fee', 0))
+
+                                trade_data = {
+                                    'timestamp': trade_time.isoformat(),
+                                    'symbol': symbol,
+                                    'type': 'sell',
+                                    'entry_price': 0,  # 수동 거래는 진입가 알 수 없음
+                                    'exit_price': avg_price,
+                                    'quantity': executed_volume,
+                                    'pnl': 0,  # 진입가 없으므로 계산 불가
+                                    'pnl_rate': 0,
+                                    'fee': paid_fee,
+                                    'hold_time_hours': 0,
+                                    'order_uuid': order_uuid,
+                                    'manual_trade': True  # 수동 거래 표시
+                                }
+
+                                self.trade_history.add_trade(trade_data)
+                                manual_trade_count += 1
+                                logger.info(f"📝 수동 매도 감지: {symbol} {executed_volume:.4f}개 @ {avg_price:,.0f}원")
+
+                        elif side == 'bid':  # 매수 거래
+                            executed_volume = float(order.get('executed_volume', 0))
+                            trades_list = order.get('trades', [])
+
+                            if executed_volume > 0 and trades_list:
+                                total_funds = sum(float(t.get('funds', 0)) for t in trades_list)
+                                total_volume = sum(float(t.get('volume', 0)) for t in trades_list)
+                                avg_price = total_funds / total_volume if total_volume > 0 else 0
+
+                                created_at = order.get('created_at', '')
+                                if created_at:
+                                    trade_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                                else:
+                                    trade_time = datetime.now()
+
+                                paid_fee = float(order.get('paid_fee', 0))
+
+                                trade_data = {
+                                    'timestamp': trade_time.isoformat(),
+                                    'symbol': symbol,
+                                    'type': 'buy',
+                                    'entry_price': avg_price,
+                                    'exit_price': 0,
+                                    'quantity': executed_volume,
+                                    'pnl': 0,
+                                    'pnl_rate': 0,
+                                    'fee': paid_fee,
+                                    'hold_time_hours': 0,
+                                    'order_uuid': order_uuid,
+                                    'manual_trade': True
+                                }
+
+                                self.trade_history.add_trade(trade_data)
+                                manual_trade_count += 1
+                                logger.info(f"📝 수동 매수 감지: {symbol} {executed_volume:.4f}개 @ {avg_price:,.0f}원")
+
+                    time.sleep(0.1)  # API 호출 제한 방지
+
+                except Exception as e:
+                    logger.debug(f"{symbol} 주문 조회 실패: {e}")
+                    continue
+
+            if manual_trade_count > 0:
+                logger.info(f"✅ 수동 거래 {manual_trade_count}건 감지 및 기록 완료")
+            else:
+                logger.info("✅ 새로운 수동 거래 없음")
+
+        except Exception as e:
+            logger.error(f"수동 거래 감지 실패: {e}")
             import traceback
             logger.error(traceback.format_exc())
 
@@ -544,6 +775,22 @@ class TradingBot:
                         'quantity': actual_quantity
                     })
 
+                    # 🆕 매수 거래 기록 (수동 거래 감지용)
+                    self.trade_history.add_trade({
+                        'timestamp': datetime.now().isoformat(),
+                        'symbol': symbol,
+                        'type': 'buy',
+                        'entry_price': actual_price,
+                        'exit_price': 0,
+                        'quantity': actual_quantity,
+                        'pnl': 0,
+                        'pnl_rate': 0,
+                        'fee': paid_fee if 'paid_fee' in locals() else 0,
+                        'hold_time_hours': 0,
+                        'order_uuid': order['uuid'],  # 수동 거래 감지용
+                        'manual_trade': False
+                    })
+
                     # 🆕 실제 슬리피지 기록
                     if self.slippage_manager:
                         self.slippage_manager.record_actual_slippage(
@@ -702,7 +949,9 @@ class TradingBot:
                         'pnl': real_pnl,
                         'pnl_rate': pnl_rate,
                         'fee': paid_fee if 'paid_fee' in locals() else 0,
-                        'hold_time_hours': hold_time
+                        'hold_time_hours': hold_time,
+                        'order_uuid': order_uuid,  # 수동 거래 감지용
+                        'manual_trade': False
                     })                 
 
                     # ✅ 상세 로그 출력
@@ -1038,9 +1287,11 @@ class TradingBot:
                 'pnl': real_pnl,
                 'pnl_rate': pnl_rate,
                 'fee': paid_fee,
-                'hold_time_hours': hold_time_hours
+                'hold_time_hours': hold_time_hours,
+                'order_uuid': order_uuid,  # 수동 거래 감지용
+                'manual_trade': False
             }
-            
+
             return trade_data, actual_price, real_pnl, pnl_rate
             
         except Exception as e:
@@ -1246,10 +1497,14 @@ class TradingBot:
                                 logger.info(f"   💧 물타기 진행: {avg_info['count']}/{AVERAGING_DOWN_CONFIG['max_averaging_count']}차")
                                 logger.info(f"   🎯 평단가 낮추기 대기 중")
                     
-                    # 4. 목표 수익 체크 (남은 수량 전량 매도) + 🆕 스윙 홀딩 통합
-                    if self.strategy.check_profit_target(entry_price, current_price):
-                        current_pnl_rate = (current_price - entry_price) / entry_price
+                    # 4. 목표 수익 체크 (남은 수량 전량 매도) + 🆕 시장 연동 동적 익절
+                    current_pnl_rate = (current_price - entry_price) / entry_price
 
+                    # 🆕 시장 상황에 따른 동적 익절 목표 가져오기
+                    adaptive_target = self.get_adaptive_take_profit_target()
+
+                    # 동적 익절 목표 달성 여부 체크
+                    if current_pnl_rate >= adaptive_target:
                         # 🆕 스윙 홀딩 체크
                         swing_allow, swing_reason = self.swing_holding.should_allow_exit(
                             symbol, entry_time, current_pnl_rate, exit_reason='take_profit'
@@ -1258,11 +1513,12 @@ class TradingBot:
                         if not swing_allow:
                             logger.info(f"{symbol}: 목표 수익 신호이지만 스윙 홀딩 중")
                             logger.info(f"   🎯 {swing_reason}")
-                            logger.info(f"   현재 수익: {current_pnl_rate:+.2%}")
+                            logger.info(f"   현재 수익: {current_pnl_rate:+.2%} (목표: {adaptive_target:.1%})")
                             continue  # 더 큰 수익 대기
 
                         if self.strategy.can_exit_position(symbol):
-                            logger.info(f"{symbol}: 최종 목표 수익 달성 ({current_pnl_rate:+.2%})")
+                            logger.info(f"{symbol}: 🎯 동적 익절 목표 달성!")
+                            logger.info(f"   수익률: {current_pnl_rate:+.2%} (목표: {adaptive_target:.1%}, 시장: {self.current_market_condition})")
                             logger.info(f"   → 스윙 홀딩 허용: {swing_reason}")
                             self.execute_trade(symbol, 'sell', current_price)
                             self.partial_exit_manager.reset_position(symbol)
@@ -1298,24 +1554,40 @@ class TradingBot:
         """업비트 실제 잔고 기반 정확한 자산 계산"""
         try:
             balances = self.upbit.get_balances()
+
+            # balances가 None이거나 리스트가 아닌 경우 처리
+            if not balances or not isinstance(balances, list):
+                logger.warning("잔고 조회 실패 - 캐시된 값 사용")
+                return getattr(self, '_cached_balance', self.balance)
+
             total_value = 0
-            
+
             for b in balances:
-                if b['currency'] == 'KRW':
-                    total_value += float(b['balance'])
-                else:
-                    qty = float(b['balance']) + float(b['locked'])
-                    if qty > 0:
-                        current_price = pyupbit.get_current_price(
-                            f"KRW-{b['currency']}"
-                        )
-                        if current_price:
-                            total_value += current_price * qty
-            
-            return total_value
+                try:
+                    if b['currency'] == 'KRW':
+                        total_value += float(b['balance'])
+                    else:
+                        qty = float(b['balance']) + float(b['locked'])
+                        if qty > 0:
+                            current_price = pyupbit.get_current_price(
+                                f"KRW-{b['currency']}"
+                            )
+                            if current_price:
+                                total_value += current_price * qty
+                except (KeyError, ValueError, TypeError):
+                    continue
+
+            # 유효한 값이면 캐시
+            if total_value > 0:
+                self._cached_balance = total_value
+
+            return total_value if total_value > 0 else getattr(self, '_cached_balance', self.balance)
+
         except Exception as e:
-            logger.error(f"자산 계산 실패: {e}")
-            return self.balance
+            # rate limit 파싱 오류는 무시 (실제 데이터는 정상일 수 있음)
+            if "파싱" not in str(e):
+                logger.error(f"자산 계산 실패: {e}")
+            return getattr(self, '_cached_balance', self.balance)
     
     def print_status(self):
         """현재 상태 출력"""
@@ -1402,7 +1674,13 @@ class TradingBot:
         logger.info(f"초기 자본: {self.balance:,.0f} KRW")
         logger.info(f"거래 대상: {', '.join(TRADING_PAIRS)}")
         logger.info("="*60)
-        
+
+        # 🆕 시작 시 거래소와 동기화 및 수동 거래 감지
+        logger.info("")
+        self.sync_positions_with_exchange()
+        self.detect_manual_trades()
+        logger.info("")
+
         last_status_time = time.time()
         status_interval = STRATEGY_CONFIG['status_print_interval']
         last_save_time = time.time()
@@ -1526,11 +1804,21 @@ class TradingBot:
 
                 self.check_averaging_down_opportunity()
 
-                # 청산 조건 체크
+                # 청산 조건 체크 (항상 실행 - max_positions 상관없이)
                 self.check_exit_conditions()
-                
+
                 # 새로운 거래 기회 탐색
-                if self.strategy.can_trade_today() and not daily_loss_limit_reached:
+                current_positions = len(self.risk_manager.positions)
+                max_positions = self.risk_manager.max_positions
+
+                if current_positions >= max_positions:
+                    # max_positions 도달 - 신규 진입 차단, 청산만 계속
+                    if self.iteration % 30 == 0:  # 5분마다 로그 (10초 * 30 = 300초)
+                        logger.info(f"📊 포지션 가득 참 ({current_positions}/{max_positions}) - 청산 대기 중")
+                        for sym, pos in self.risk_manager.positions.items():
+                            pnl = (pyupbit.get_current_price(f"KRW-{sym}") - pos['entry_price']) / pos['entry_price'] * 100
+                            logger.info(f"   {sym}: {pnl:+.2f}%")
+                elif self.strategy.can_trade_today() and not daily_loss_limit_reached:
                     self.analyze_and_trade()
                 else:
                     if daily_loss_limit_reached:

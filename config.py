@@ -78,7 +78,7 @@ STRATEGY_CONFIG = {
     'min_profit_target': get_setting('strategy', 'min_profit_target', default=0.030),
     'max_trades_per_day': get_setting('strategy', 'max_trades_per_day', default=20),
     'min_hold_time': get_setting('strategy', 'min_hold_time_hours', default=12) * 3600,
-    'status_print_interval': get_setting('advanced', 'status_print_interval', default=300),
+    'status_print_interval': get_setting('advanced', 'status_print_interval', default=60),
     'position_save_interval': get_setting('advanced', 'position_save_interval', default=60),
     'trade_cooldown_minutes': get_setting('strategy', 'trade_cooldown_minutes', default=120),
 }
@@ -100,6 +100,21 @@ PYRAMIDING_CONFIG = {
     'min_volume_increase': 1.3,
     'use_breakeven_stop': True,
     'tighten_stop_loss': 0.008,
+}
+
+# ==========================================
+# 🎯 시장 연동 익절 조정 설정
+# ==========================================
+ADAPTIVE_TAKE_PROFIT_CONFIG = {
+    'enabled': get_setting('adaptive_take_profit', 'enabled', default=True),
+    'base_target': get_setting('strategy', 'min_profit_target', default=0.030),  # 기본 익절 목표 3%
+    'market_adjustments': {
+        'bullish': get_setting('adaptive_take_profit', 'bullish_target', default=0.035),   # 상승장: 3.5%
+        'neutral': get_setting('adaptive_take_profit', 'neutral_target', default=0.025),   # 중립: 2.5%
+        'bearish': get_setting('adaptive_take_profit', 'bearish_target', default=0.015),   # 하락장: 1.5%
+    },
+    'min_profit_floor': get_setting('adaptive_take_profit', 'min_profit_floor', default=0.010),  # 최소 1% 수익 확보
+    'log_adjustments': True,  # 조정 시 로그 출력
 }
 
 # 리스크 관리 - settings.json에서 로드
@@ -264,22 +279,22 @@ STRATEGY_PRESETS = {
         'stop_loss': get_setting('risk', 'stop_loss', default=0.015),
     },
     'balanced': {
-        'entry_score_threshold': 5.5,
-        'mtf_min_score': 6.0,
-        'mtf_min_consensus': 0.70,
-        'ml_min_probability': 0.55,
+        'entry_score_threshold': get_setting('entry', 'score_threshold', default=5.0),
+        'mtf_min_score': get_setting('entry', 'mtf_min_score', default=5.5),
+        'mtf_min_consensus': get_setting('entry', 'mtf_min_consensus', default=0.60),
+        'ml_min_probability': get_setting('entry', 'ml_min_probability', default=0.58),
         'signal_weights': {'technical': 0.40, 'mtf': 0.50, 'ml': 0.10},
-        'max_positions': 2,
-        'max_position_size': 0.20,
-        'stop_loss': 0.015,
+        'max_positions': get_setting('risk', 'max_positions', default=1),
+        'max_position_size': get_setting('risk', 'max_position_size', default=0.20),
+        'stop_loss': get_setting('risk', 'stop_loss', default=0.015),
     },
     'aggressive': {
-        'entry_score_threshold': 5.0,
-        'mtf_min_score': 5.5,
-        'mtf_min_consensus': 0.65,
+        'entry_score_threshold': 4.5,  # aggressive는 더 낮은 고정값
+        'mtf_min_score': 5.0,
+        'mtf_min_consensus': 0.55,
         'ml_min_probability': 0.45,
         'signal_weights': {'technical': 0.80, 'mtf': 0.20, 'ml': 0},
-        'max_positions': 2,
+        'max_positions': 3,
         'max_position_size': 0.25,
         'stop_loss': 0.020,
     },
@@ -392,7 +407,21 @@ SWING_HOLDING_CONFIG = {
 }
 
 # ==========================================
-# 🚀 11. 초기화
+# 🔄 11. 적응형 점수 관리 설정
+# ==========================================
+ADAPTIVE_SCORE_CONFIG = {
+    'enabled': get_setting('adaptive_score', 'enabled', default=True),
+    'analysis_interval_hours': get_setting('adaptive_score', 'analysis_interval_hours', default=4),
+    'min_trades_for_analysis': get_setting('adaptive_score', 'min_trades', default=10),
+    'lookback_days': get_setting('adaptive_score', 'lookback_days', default=7),
+    'target_win_rate': get_setting('adaptive_score', 'target_win_rate', default=0.50),
+    'max_adjustment': get_setting('adaptive_score', 'max_adjustment', default=0.5),
+    'score_min': get_setting('adaptive_score', 'score_min', default=4.0),
+    'score_max': get_setting('adaptive_score', 'score_max', default=8.0),
+}
+
+# ==========================================
+# 🚀 12. 초기화
 # ==========================================
 
 def print_config_summary():

@@ -10,7 +10,11 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import warnings
+import os
 
+# sklearn parallel 경고 억제
+os.environ['LOKY_MAX_CPU_COUNT'] = '4'
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn')
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
@@ -93,7 +97,7 @@ class MLSignalGenerator:
                 min_samples_split=20,
                 min_samples_leaf=10,
                 random_state=42,
-                n_jobs=-1
+                n_jobs=1  # 병렬 처리 비활성화 (경고 방지)
             )
         else:  # gradient_boosting
             self.model = GradientBoostingClassifier(
