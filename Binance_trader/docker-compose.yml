@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  binance-trader:
+    build: .
+    container_name: binance-trader
+    restart: unless-stopped
+
+    # 환경변수 (.env 파일에서 로드)
+    env_file:
+      - .env
+
+    # 볼륨 마운트
+    volumes:
+      # 설정 파일
+      - ./binance_settings.json:/app/binance_settings.json:ro
+      # 데이터 파일 (읽기/쓰기)
+      - ./data:/app/data
+
+    # 로그 설정
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # 헬스체크
+    healthcheck:
+      test: ["CMD", "python", "-c", "import ccxt; print('OK')"]
+      interval: 5m
+      timeout: 10s
+      retries: 3
+
+  # 웹 대시보드
+  binance-web:
+    build: .
+    container_name: binance-web
+    restart: unless-stopped
+    command: ["python", "-u", "binance_web_dashboard.py"]
+    env_file:
+      - .env
+    volumes:
+      - ./binance_settings.json:/app/binance_settings.json:ro
+      - ./data:/app/data
+    ports:
+      - "5000:5000"  # 웹 대시보드 포트
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

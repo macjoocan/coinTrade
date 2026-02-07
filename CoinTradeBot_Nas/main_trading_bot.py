@@ -2271,7 +2271,8 @@ if __name__ == "__main__":
         print("3. api.secret_key 에 업비트 Secret Key 입력")
         print("4. 저장 후 다시 실행")
         print("="*60)
-        input("\n아무 키나 누르면 종료됩니다...")
+        if not os.getenv('DATA_PATH'):
+            input("\n아무 키나 누르면 종료됩니다...")
         exit(1)
 
     print("="*60)
@@ -2302,18 +2303,24 @@ if __name__ == "__main__":
                 print(f"  {symbol}: {pnl:+.2f}% (진입가: {pos['entry_price']:,.0f})")
         
         print("\n어떻게 처리하시겠습니까?")
-        print("1. 기존 포지션 유지하고 계속")
-        print("2. 거래소와 동기화 (수동 거래 반영)")
-        print("3. 모든 포지션 강제 청산")
-        print("4. 선택적으로 청산")
-        
-        choice = input("\n선택 (1/2/3/4): ").strip()
+
+        # Docker 환경에서는 자동으로 1번(기존 포지션 유지) 선택
+        if os.getenv('DATA_PATH'):
+            print("→ Docker 모드: 기존 포지션 유지하고 계속")
+            choice = '1'
+        else:
+            print("1. 기존 포지션 유지하고 계속")
+            print("2. 거래소와 동기화 (수동 거래 반영)")
+            print("3. 모든 포지션 강제 청산")
+            print("4. 선택적으로 청산")
+            choice = input("\n선택 (1/2/3/4): ").strip()
         
         if choice == '2':
             print("\n🔄 거래소와 동기화 중...")
             bot.sync_positions_with_exchange()
             print("✅ 동기화 완료!\n")
-            input("계속하려면 Enter를 누르세요...")
+            if not os.getenv('DATA_PATH'):
+                input("계속하려면 Enter를 누르세요...")
             
         elif choice == '3':
             print("모든 포지션 강제 청산 중...")
@@ -2394,23 +2401,28 @@ if __name__ == "__main__":
             
         print("="*50)
     
-    # 테스트 모드 선택
-    print("\n실행 모드를 선택하세요:")
-    print("1. 테스트 모드 (거래 없이 신호만 확인)")
-    print("2. 실전 모드 (실제 거래 실행)")
-    
-    mode = input("\n선택 (1 또는 2): ").strip()
-    
-    if mode == '1':
-        print("\n📊 테스트 모드로 실행합니다...")
-        test_run(bot)
-    elif mode == '2':
-        print("\n⚠️ 실제 자금으로 거래가 실행됩니다!")
-        confirm = input("정말 실전 거래를 시작하시겠습니까? (yes 입력): ")
-        if confirm.lower() == 'yes':
-            print("\n🚀 실전 모드로 실행합니다...")
-            bot.run()
-        else:
-            print("거래 취소")
+    # Docker 환경에서는 자동으로 실전 모드 실행
+    if os.getenv('DATA_PATH'):
+        print("\n→ Docker 모드: 실전 모드로 자동 실행")
+        bot.run()
     else:
-        print("잘못된 선택입니다.")
+        # 테스트 모드 선택
+        print("\n실행 모드를 선택하세요:")
+        print("1. 테스트 모드 (거래 없이 신호만 확인)")
+        print("2. 실전 모드 (실제 거래 실행)")
+
+        mode = input("\n선택 (1 또는 2): ").strip()
+
+        if mode == '1':
+            print("\n📊 테스트 모드로 실행합니다...")
+            test_run(bot)
+        elif mode == '2':
+            print("\n⚠️ 실제 자금으로 거래가 실행됩니다!")
+            confirm = input("정말 실전 거래를 시작하시겠습니까? (yes 입력): ")
+            if confirm.lower() == 'yes':
+                print("\n🚀 실전 모드로 실행합니다...")
+                bot.run()
+            else:
+                print("거래 취소")
+        else:
+            print("잘못된 선택입니다.")

@@ -1,7 +1,8 @@
-# dashboard.py - 최근 거래 내역 추가
+# dashboard.py - 고급 ML + 실시간 시장 감지 통합 버전
 
 import os
 import time
+import json
 import pyupbit
 from datetime import datetime, timedelta
 from rich.console import Console
@@ -14,6 +15,22 @@ from config import TRADING_PAIRS, RISK_CONFIG, apply_preset, ACTIVE_PRESET, UPBI
 from collections import deque
 from trade_history_manager import TradeHistoryManager
 import logging
+
+# 🆕 상단 import로 이동 (성능 최적화)
+from momentum_scanner_improved import ImprovedMomentumScanner
+from multi_timeframe_analyzer import MultiTimeframeAnalyzer
+from rapid_market_detector import get_rapid_detector
+from adaptive_risk_manager import get_adaptive_risk_manager, get_regime_detector
+
+# 고급 ML 엔진 (선택적 로드)
+try:
+    from advanced_ml_engine import AdvancedMLEngine
+    ADVANCED_ML_AVAILABLE = True
+except ImportError:
+    ADVANCED_ML_AVAILABLE = False
+
+# 기본 ML (폴백용)
+from ml_signal_generator import MLSignalGenerator
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -33,9 +50,6 @@ class MarketDataCache:
         self.change_update_interval = 300
         self.top_movers = {'gainers': [], 'losers': []}
         self.last_movers_update = datetime.now() - timedelta(minutes=5)
-        self.stats_cache = {'24h': None, '7d': None, '30d': None}
-        self.last_stats_update = datetime.now() - timedelta(minutes=5)
-        self.stats_cache_interval = 300  # 5분
    
     def get_price_only(self, ticker):
         """✅ 24시간 변동률 없이 현재가만 즉시 반환 (포지션 갱신용)"""
@@ -152,11 +166,9 @@ class MarketDataCache:
             return self.top_movers
         
         try:
-            major_coins = [
-                'BTC', 'ETH', 'XRP', 'SOL', 'DOGE', 'ADA', 'AVAX',
-                'DOT', 'MATIC', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM',
-                'TRX', 'SHIB', 'NEAR', 'BCH', 'APT', 'ARB', 'OP'
-            ]
+            # 🆕 TRADING_PAIRS 기반 + 주요 코인 병합 (중복 제거)
+            base_coins = ['BTC', 'ETH', 'XRP', 'SOL', 'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK']
+            major_coins = list(dict.fromkeys(TRADING_PAIRS + base_coins))[:20]  # 최대 20개
             
             market_data = []
             
@@ -237,6 +249,39 @@ class TradingDashboard:
         self.last_pos_file_read = datetime.now() - timedelta(seconds=10)
         self.pos_cache_interval = 1 # 1초마다 파일 읽기
 
+        # 🆕 실시간 시장 감지 시스템
+        self.rapid_detector = get_rapid_detector()
+        self.rapid_cache = None
+        self.last_rapid_update = datetime.now() - timedelta(seconds=60)
+        self.rapid_cache_interval = 10  # 10초
+
+        # 🆕 고급 ML 엔진 (있으면 사용, 없으면 기본 ML)
+        self.advanced_ml = None
+        self.basic_ml = None
+        if ADVANCED_ML_AVAILABLE:
+            try:
+                self.advanced_ml = AdvancedMLEngine()
+                if self.advanced_ml.is_trained:
+                    logger.info("Advanced ML Engine loaded for dashboard")
+            except Exception as e:
+                logger.warning(f"Advanced ML load failed: {e}")
+
+        if not self.advanced_ml or not self.advanced_ml.is_trained:
+            self.basic_ml = MLSignalGenerator()
+
+        # 🆕 모멘텀 스캐너 (재사용)
+        self.momentum_scanner = ImprovedMomentumScanner()
+
+        # 🆕 MTF 분석기 (재사용)
+        self.mtf_analyzer = MultiTimeframeAnalyzer()
+
+        # 🆕 ATR 동적 리스크 관리자 + 마켓 레짐 감지
+        self.adaptive_risk = get_adaptive_risk_manager()
+        self.regime_detector = get_regime_detector()
+        self.regime_cache = None
+        self.last_regime_update = datetime.now() - timedelta(seconds=60)
+        self.regime_cache_interval = 60  # 60초
+
     def setup_layout(self):
         """✅ 레이아웃 구성 - Center 순서 조정"""
         # 메인 레이아웃: 상단(헤더) + 중단(메인 콘텐츠) + 하단(통계)
@@ -267,10 +312,11 @@ class TradingDashboard:
             Layout(name="positions", ratio=2)
         )
         
-        # 우측: MTF 분석 + ML 예측
+        # 우측: 실시간 시장 + MTF 분석 + ML 예측 (3분할)
         self.layout["right"].split(
-            Layout(name="mtf_analysis"),
-            Layout(name="ml_prediction")
+            Layout(name="rapid_market", ratio=1),
+            Layout(name="mtf_analysis", ratio=1),
+            Layout(name="ml_prediction", ratio=1)
         )
         
         # 하단 통계: 24h, 7d, 30d 가로 배치
@@ -363,6 +409,85 @@ class TradingDashboard:
             border_style="yellow"
         )
 
+    def get_rapid_market_panel(self):
+        """🆕 실시간 시장 감지 + ATR/레짐 통합 패널"""
+        try:
+            now = datetime.now()
+            elapsed_rapid = (now - self.last_rapid_update).total_seconds()
+            elapsed_regime = (now - self.last_regime_update).total_seconds()
+
+            # 10초마다 업데이트
+            if elapsed_rapid >= self.rapid_cache_interval or self.rapid_cache is None:
+                self.rapid_cache = self.rapid_detector.get_market_state(TRADING_PAIRS)
+                self.last_rapid_update = now
+
+            # 60초마다 레짐 업데이트
+            if elapsed_regime >= self.regime_cache_interval or self.regime_cache is None:
+                self.regime_cache = self.regime_detector.get_regime_status(TRADING_PAIRS)
+                self.last_regime_update = now
+
+            state = self.rapid_cache
+            regime = self.regime_cache
+
+            if not state:
+                return Panel("[dim]Loading...[/dim]", title="⚡ Market Status", border_style="red")
+
+            lines = []
+
+            # 시장 상태 (이모지 + 색상)
+            state_config = {
+                'crash': ('🔴', 'red', 'CRASH'),
+                'strong_bearish': ('🟠', 'red', 'STR BEAR'),
+                'bearish': ('🟡', 'yellow', 'BEARISH'),
+                'neutral': ('⚪', 'white', 'NEUTRAL'),
+                'bullish': ('🟢', 'green', 'BULLISH'),
+                'strong_bullish': ('💚', 'green', 'STR BULL'),
+                'volatile': ('⚡', 'magenta', 'VOLATILE')
+            }
+
+            market_state = state.get('state', 'neutral')
+            emoji, color, label = state_config.get(market_state, ('⚪', 'white', 'UNKNOWN'))
+
+            lines.append(f"[bold {color}]{emoji} {label}[/bold {color}]")
+
+            # 🆕 마켓 레짐 표시
+            if regime:
+                regime_emoji = regime.get('emoji', '⚪')
+                regime_name = regime.get('regime', 'NORMAL')
+                regime_conf = regime.get('confidence', 0)
+
+                regime_color = "magenta" if regime_name == 'HIGH_VOLATILITY' else "cyan" if regime_name == 'TRENDING' else "yellow"
+                lines.append(f"[{regime_color}]{regime_emoji} {regime_name[:8]} ({regime_conf:.0%})[/{regime_color}]")
+
+            lines.append("")
+
+            # 점수 조정값
+            score_adj = state.get('score_adjustment', 0)
+            adj_color = "red" if score_adj > 0 else "green" if score_adj < 0 else "white"
+            lines.append(f"Score: [{adj_color}]{score_adj:+.1f}[/{adj_color}]")
+
+            # 포지션 배수
+            pos_mult = state.get('position_multiplier', 1.0)
+            mult_color = "red" if pos_mult < 1.0 else "green" if pos_mult > 1.0 else "white"
+            lines.append(f"Pos: [{mult_color}]{pos_mult:.1f}x[/{mult_color}]")
+
+            # 🆕 ATR 기반 동적 손절/익절 (첫 번째 코인)
+            if TRADING_PAIRS:
+                atr_status = self.adaptive_risk.get_atr_status(TRADING_PAIRS[0])
+                if atr_status['atr_pct']:
+                    atr_color = "red" if atr_status['level'] in ['high', 'extreme'] else "green" if atr_status['level'] == 'low' else "white"
+                    lines.append(f"\n[dim]ATR:[/dim] [{atr_color}]{atr_status['atr_pct']:.2%}[/{atr_color}]")
+                    lines.append(f"[dim]SL:[/dim] {atr_status['stop_loss']:.2%} [dim]TP:[/dim] {atr_status['take_profit']:.2%}")
+
+            return Panel(
+                "\n".join(lines),
+                title="⚡ Market Status",
+                border_style="red" if market_state in ['crash', 'strong_bearish'] else "green" if 'bullish' in market_state else "yellow"
+            )
+
+        except Exception as e:
+            return Panel(f"[red]Error: {str(e)[:30]}[/red]", title="⚡ Market Status", border_style="red")
+
     def get_dynamic_coins_panel(self):
         """동적 코인 상태 패널 (캐시 적용)"""
         lines = []
@@ -371,11 +496,9 @@ class TradingDashboard:
             now = datetime.now()
             elapsed = (now - self.last_dynamic_update).total_seconds()
 
-            # 60초마다만 스캔 실행
+            # 60초마다만 스캔 실행 (🆕 상단 import 사용)
             if elapsed >= self.dynamic_cache_interval or self.dynamic_coins_cache is None:
-                from momentum_scanner_improved import ImprovedMomentumScanner
-                scanner = ImprovedMomentumScanner()
-                self.dynamic_coins_cache = scanner.scan_top_performers(top_n=3)
+                self.dynamic_coins_cache = self.momentum_scanner.scan_top_performers(top_n=3)
                 self.last_dynamic_update = now
 
             dynamic_coins = self.dynamic_coins_cache
@@ -426,11 +549,9 @@ class TradingDashboard:
             now = datetime.now()
             elapsed = (now - self.last_mtf_update).total_seconds()
 
-            # 캐시 체크 - 30초마다만 업데이트
+            # 캐시 체크 - 30초마다만 업데이트 (🆕 상단 import 사용)
             if elapsed >= self.mtf_cache_interval or self.mtf_cache is None:
-                from multi_timeframe_analyzer import MultiTimeframeAnalyzer
-                mtf = MultiTimeframeAnalyzer()
-                self.mtf_cache = mtf.analyze(symbol)
+                self.mtf_cache = self.mtf_analyzer.analyze(symbol)
                 self.last_mtf_update = now
 
             analysis = self.mtf_cache
@@ -476,26 +597,45 @@ class TradingDashboard:
             )
     
     def get_ml_prediction_panel(self):
-        """ML 예측 패널 (캐시 적용)"""
+        """🆕 ML 예측 패널 - Advanced ML (앙상블+LSTM) 우선 사용"""
         try:
-            symbol = TRADING_PAIRS[0]  # symbol을 먼저 정의
+            symbol = TRADING_PAIRS[0]
             now = datetime.now()
             elapsed = (now - self.last_ml_update).total_seconds()
 
             # 캐시 체크 - 30초마다만 업데이트
             if elapsed >= self.ml_cache_interval or self.ml_cache is None:
-                from ml_signal_generator import MLSignalGenerator
-                ml = MLSignalGenerator()
-
-                if not ml.is_trained:
+                # 🆕 Advanced ML 우선 사용
+                if self.advanced_ml and self.advanced_ml.is_trained:
+                    prediction = self.advanced_ml.predict(symbol)
+                    if prediction:
+                        self.ml_cache = {
+                            'buy_probability': prediction['probability'],  # 키 수정
+                            'confidence': prediction['confidence'],
+                            'prediction': prediction['prediction'],  # 키 수정
+                            'timestamp': prediction['timestamp'],
+                            'model_type': 'Advanced',
+                            'ensemble_prob': prediction.get('ensemble_prob'),  # 키 수정
+                            'lstm_prob': prediction.get('lstm_prob')  # 키 수정
+                        }
+                # 폴백: 기본 ML
+                elif self.basic_ml and self.basic_ml.is_trained:
+                    prediction = self.basic_ml.predict(symbol)
+                    if prediction:
+                        self.ml_cache = {
+                            'buy_probability': prediction['buy_probability'],
+                            'confidence': prediction['confidence'],
+                            'prediction': prediction['prediction'],
+                            'timestamp': prediction['timestamp'],
+                            'model_type': 'Basic'
+                        }
+                else:
                     return Panel(
                         "[yellow]Model not trained yet[/yellow]\n"
-                        "[dim]Training on first run...[/dim]",
+                        "[dim]Run train_advanced_ml.py[/dim]",
                         title="🤖 ML Prediction",
                         border_style="magenta"
                     )
-
-                self.ml_cache = ml.predict(symbol)
                 self.last_ml_update = now
 
             prediction = self.ml_cache
@@ -504,24 +644,35 @@ class TradingDashboard:
                 return Panel("Loading ML...", title="🤖 ML Prediction", border_style="magenta")
 
             lines = []
-            lines.append(f"[bold magenta]{symbol} Prediction[/bold magenta]")
+            model_type = prediction.get('model_type', 'Basic')
+            model_badge = "[bold green]⚡Advanced[/bold green]" if model_type == 'Advanced' else "[dim]Basic[/dim]"
+            lines.append(f"[bold magenta]{symbol}[/bold magenta] {model_badge}")
             lines.append("")
-            
+
             prob = prediction['buy_probability']
             prob_color = "green" if prob >= 0.65 else "yellow" if prob >= 0.55 else "red"
-            lines.append(f"Buy Probability: [{prob_color}]{prob:.1%}[/{prob_color}]")
-            
+            lines.append(f"Buy Prob: [{prob_color}]{prob:.1%}[/{prob_color}]")
+
             confidence = prediction['confidence']
             conf_color = "green" if confidence >= 0.70 else "yellow" if confidence >= 0.60 else "red"
             lines.append(f"Confidence: [{conf_color}]{confidence:.1%}[/{conf_color}]")
-            
+
+            # 🆕 Advanced ML: 개별 모델 확률 표시
+            if model_type == 'Advanced':
+                ens_prob = prediction.get('ensemble_prob')
+                lstm_prob = prediction.get('lstm_prob')
+                if ens_prob is not None:
+                    lines.append(f"[dim]Ensemble: {ens_prob:.1%}[/dim]")
+                if lstm_prob is not None:
+                    lines.append(f"[dim]LSTM: {lstm_prob:.1%}[/dim]")
+
             if prediction['prediction']:
                 lines.append("\n[green]✅ BUY Signal[/green]")
             else:
-                lines.append("\n[red]❌ SELL/HOLD Signal[/red]")
-            
+                lines.append("\n[red]❌ HOLD Signal[/red]")
+
             pred_time = prediction['timestamp'].strftime('%H:%M:%S')
-            lines.append(f"\n[dim]Time: {pred_time}[/dim]")
+            lines.append(f"[dim]{pred_time}[/dim]")
             
             return Panel(
                 "\n".join(lines),
@@ -537,8 +688,7 @@ class TradingDashboard:
             )
     
     def get_positions_panel(self):
-        """포지션 패널 (수수료 반영 + Trailing Stop 시각화)"""
-        import json
+        """포지션 패널 (수수료 반영 + Trailing Stop 시각화 + breakeven_mode)"""
         lines = []
         try:
             fee_rate = UPBIT_CONFIG.get('fee_rate', 0.0005) #
@@ -575,8 +725,11 @@ class TradingDashboard:
                         drop_from_high = ((current_price - highest_price) / highest_price) * 100
                         
                         color = "green" if net_pnl_val >= 0 else "red"
-                        lines.append(f"[bold]{symbol:<5}[/bold]: [{color}]{net_pnl_rate:>+6.2f}%[/{color}] [dim]({net_pnl_val:+,.0f}원)[/dim]")
-                        
+
+                        # 🆕 breakeven_mode 표시
+                        breakeven_badge = " [cyan]🛡BE[/cyan]" if pos.get('breakeven_mode', False) else ""
+                        lines.append(f"[bold]{symbol:<5}[/bold]: [{color}]{net_pnl_rate:>+6.2f}%[/{color}]{breakeven_badge} [dim]({net_pnl_val:+,.0f})[/dim]")
+
                         # 수익 구간일 때 고점 대비 하락 현황 시각화
                         if net_pnl_rate > 1.0:
                             lines.append(f"  └ [dim]Peak: {highest_price:,.0f} | Drop: [bold red]{drop_from_high:.2f}%[/bold red][/dim]")
@@ -738,6 +891,9 @@ class TradingDashboard:
             
             self.layout["top_movers"].update(self.get_top_movers_panel())
             self.layout["dynamic_coins"].update(self.get_dynamic_coins_panel())
+
+            # 🆕 우측 패널: 실시간 시장 + MTF + ML
+            self.layout["rapid_market"].update(self.get_rapid_market_panel())
             self.layout["mtf_analysis"].update(self.get_mtf_analysis_panel())
             self.layout["ml_prediction"].update(self.get_ml_prediction_panel())
             
@@ -759,7 +915,7 @@ def main():
     
     console.clear()
     console.print("[bold cyan]🚀 Upbit Advanced Trading Dashboard[/bold cyan]")
-    console.print("[yellow]⚡ Features: MTF + ML + Recent Trades + Multi-Period Stats[/yellow]")
+    console.print("[yellow]⚡ Features: Rapid Market + Advanced ML + MTF + Multi-Period Stats[/yellow]")
     console.print("[dim]Loading... First update may take 10-15 seconds.[/dim]")
     console.print("Press Ctrl+C to exit\n")
     

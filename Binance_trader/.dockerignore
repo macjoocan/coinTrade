@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Build
+build/
+dist/
+*.spec
+*.exe
+
+# Data (mounted as volumes)
+data/
+*.log
+binance_history.json
+binance_positions.json
+
+# Sensitive
+.env
+
+# Release folder
+BinanceTrader_Release/

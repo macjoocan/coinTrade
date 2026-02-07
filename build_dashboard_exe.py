@@ -38,6 +38,14 @@ def build_dashboard_exe():
         "--collect-all", "sklearn",
         "--collect-all", "rich",
 
+        # XGBoost/LightGBM: DLL + 데이터 파일 수집 (테스트 모듈 제외)
+        "--collect-binaries", "xgboost",
+        "--collect-binaries", "lightgbm",
+        "--collect-data", "xgboost",
+        "--collect-data", "lightgbm",
+        "--copy-metadata", "xgboost",
+        "--copy-metadata", "lightgbm",
+
         # 숨겨진 import
         "--hidden-import", "pyupbit",
         "--hidden-import", "pandas",
@@ -46,6 +54,11 @@ def build_dashboard_exe():
         "--hidden-import", "sklearn.ensemble",
         "--hidden-import", "sklearn.ensemble._forest",
         "--hidden-import", "sklearn.preprocessing",
+        "--hidden-import", "sklearn.preprocessing._data",
+        "--hidden-import", "sklearn.utils._cython_blas",
+        "--hidden-import", "sklearn.neighbors._typedefs",
+        "--hidden-import", "sklearn.neighbors._quad_tree",
+        "--hidden-import", "sklearn.tree._utils",
         "--hidden-import", "rich",
         "--hidden-import", "rich.console",
         "--hidden-import", "rich.table",
@@ -57,6 +70,23 @@ def build_dashboard_exe():
         "--hidden-import", "websocket",
         "--hidden-import", "jwt",
         "--hidden-import", "dateutil",
+        # 고급 ML 라이브러리 (v2.3)
+        "--hidden-import", "xgboost",
+        "--hidden-import", "lightgbm",
+        "--hidden-import", "ta",
+        "--hidden-import", "ta.momentum",
+        "--hidden-import", "ta.trend",
+        "--hidden-import", "ta.volatility",
+        # 프로젝트 모듈
+        "--hidden-import", "config",
+        "--hidden-import", "trade_history_manager",
+        "--hidden-import", "ml_signal_generator",
+        "--hidden-import", "rapid_market_detector",
+        "--hidden-import", "momentum_scanner_improved",
+        "--hidden-import", "multi_timeframe_analyzer",
+        "--hidden-import", "advanced_ml_engine",
+        "--hidden-import", "adaptive_score_manager",
+        "--hidden-import", "adaptive_risk_manager",  # ATR 동적 리스크 + 마켓 레짐
 
         # 메인 스크립트
         "dashboard.py"

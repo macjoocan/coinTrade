@@ -1,7 +1,7 @@
 # 업비트 자동매매 봇 시스템 로직 문서
 
-> **버전**: 2.1 (스윙 트레이딩 최적화 버전)
-> **최종 수정**: 2026-01-18
+> **버전**: 2.4.0 (통합 대시보드 + NAS 배포 버전)
+> **최종 수정**: 2026-01-31
 > **문서 목적**: 코드 구현이 아닌 의사결정 로직 중심의 시스템 설명
 
 ---
@@ -19,6 +19,8 @@
 9. [적응형 점수 자동 조정](#9-적응형-점수-자동-조정)
 10. [예외 상황 처리](#10-예외-상황-처리)
 11. [EXE 빌드 및 배포](#11-exe-빌드-및-배포)
+12. [통합 대시보드](#12-통합-대시보드)
+13. [Docker/NAS 배포](#13-dockernas-배포)
 
 ---
 
@@ -366,12 +368,14 @@ Gate 4: 자본 보호 (30% 손실 시 중단)
 거래 히스토리를 분석하여 진입 점수 기준을 자동으로 조정하는 시스템
 
 ```
-설정:
-├─ 분석 주기: 4시간
+설정 (v2.3.1 - 더 적극적):
+├─ 분석 주기: 2시간 (4시간 → 2시간)
 ├─ 분석 기간: 최근 7일
-├─ 최소 거래 수: 10건
+├─ 최소 거래 수: 5건 (10건 → 5건)
 ├─ 목표 승률: 50%
-├─ 최대 조정폭: ±0.5점
+├─ 최대 조정폭: ±0.8점 (±0.5 → ±0.8)
+├─ 조정 단위: 0.15점 (0.1 → 0.15)
+├─ 연속 손실 임계: 2회 (3회 → 2회)
 └─ 점수 범위: 4.0 ~ 8.0점
 ```
 
@@ -480,7 +484,48 @@ CoinTradeBot_Release/
 └── README.md             # 사용 설명서
 ```
 
-### 11.3 settings.json 설정 예시
+### 11.3 설정 파일 동기화 규칙
+
+> ⚠️ **중요**: 설정 값 변경 시 아래 파일들을 **모두 동기화**해야 합니다.
+
+| 파일 위치 | 용도 |
+|-----------|------|
+| `settings.json` | 메인 프로젝트 설정 |
+| `CoinTradeBot_Release/settings.json` | 업비트 봇 릴리즈용 |
+| `CoinTradeBot_Release/score_adjustment_history.json` | 점수 조정 이력 |
+
+**동기화 체크리스트:**
+```
+[ ] settings.json (메인)
+[ ] CoinTradeBot_Release/settings.json
+[ ] CoinTradeBot_Release/score_adjustment_history.json (점수 리셋 시)
+```
+
+**자주 변경되는 설정:**
+- `entry.score_threshold`: 진입 점수
+- `strategy.max_trades_per_day`: 일일 거래 횟수
+- `risk.max_positions`: 최대 포지션 수
+- `adaptive_score.*`: 적응형 점수 설정
+- `adaptive_preset.*`: 적응형 프리셋 설정
+
+### 11.4 웹 대시보드 가격 조회
+
+v2.4에서 `pyupbit.get_current_price()` 호출 방식을 개선했습니다.
+
+**문제**: 리스트로 여러 코인 조회 시 "Code not found" 오류 발생
+```python
+# 기존 (문제 발생)
+prices = pyupbit.get_current_price(["KRW-BTC", "KRW-ETH"])
+```
+
+**해결**: 개별 코인별로 조회하여 안정성 확보
+```python
+# 개선 (v2.4)
+for coin in coins:
+    price = pyupbit.get_current_price(f"KRW-{coin}")
+```
+
+### 11.5 settings.json 설정 예시
 
 ```json
 {
@@ -514,6 +559,108 @@ CoinTradeBot_Release/
 
 ---
 
+## 12. 통합 대시보드
+
+### 12.1 개요
+
+업비트와 바이낸스 대시보드를 하나의 페이지에서 모니터링하는 통합 대시보드입니다.
+
+```
+┌─────────────────────────────────────────┐
+│         Unified Dashboard (5002)         │
+├─────────────────────────────────────────┤
+│ [Overview] [Upbit] [Binance]            │
+├─────────────────────────────────────────┤
+│                                         │
+│  Upbit ● 연결됨    Binance ● 연결됨      │
+│  잔고: 1,234,567원  잔고: 1,234.56 USDT  │
+│  포지션: 2개        포지션: 3개          │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+### 12.2 기능
+
+| 탭 | 설명 |
+|----|------|
+| Overview | 양쪽 거래소 요약 (잔고, 포지션 수, 연결 상태) |
+| Upbit | 업비트 상세 (워치리스트, 포지션, 로그) |
+| Binance | 바이낸스 상세 (포지션, 시장 상태, 로그) |
+
+### 12.3 접속
+
+- **URL**: `http://NAS_IP:5002`
+- **파일**: `unified_dashboard.py`
+- **의존성**: 업비트(5001), 바이낸스(5000) 대시보드가 실행 중이어야 함
+
+---
+
+## 13. Docker/NAS 배포
+
+### 13.1 폴더 구조
+
+```
+CoinTradeBot_Nas/              # 업비트 봇 NAS 배포용
+├── main_trading_bot.py
+├── upbit_web_dashboard.py
+├── unified_dashboard.py
+├── config.py
+├── settings.json
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+
+BinanceTrader_Nas/             # 바이낸스 봇 NAS 배포용
+├── binance_trader.py
+├── binance_dashboard.py
+├── binance_settings.json
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
+
+### 13.2 서비스 포트
+
+| 서비스 | 포트 | 설명 |
+|--------|------|------|
+| upbit-bot | - | 업비트 트레이딩 봇 |
+| upbit-web | 5001 | 업비트 웹 대시보드 |
+| binance-trader | - | 바이낸스 트레이딩 봇 |
+| binance-web | 5000 | 바이낸스 웹 대시보드 |
+| unified-web | 5002 | 통합 대시보드 |
+
+### 13.3 배포 명령어
+
+```bash
+# SSH 접속
+ssh -p 8892 사용자@NAS_IP
+
+# 업비트 봇 배포
+cd /volume1/docker/cointradebot
+sudo docker-compose build --no-cache
+sudo docker-compose up -d
+
+# 바이낸스 봇 배포
+cd /volume1/docker/binance-trader
+sudo docker-compose build --no-cache
+sudo docker-compose up -d
+
+# 로그 확인
+sudo docker logs -f upbit-bot
+sudo docker logs -f binance-trader
+```
+
+### 13.4 코드 업데이트 시
+
+1. PC에서 `*_Nas/` 폴더의 파일 수정
+2. FileZilla 등으로 NAS에 업로드
+3. SSH 접속 후 재빌드
+```bash
+sudo docker-compose down && sudo docker-compose build --no-cache && sudo docker-compose up -d
+```
+
+---
+
 ## 📝 부록: 용어 정리
 
 ### 기술 용어
@@ -543,7 +690,12 @@ CoinTradeBot_Release/
 3. **다층 방어**: 진입 → 보유 → 청산 각 단계에서 리스크 검증
 4. **투명성**: 모든 의사결정 과정을 로그로 기록
 
-### v2.1 주요 변경사항
+### v2.4 주요 변경사항 (2026-01-31)
+- [x] 통합 대시보드 추가 (Upbit + Binance 한 페이지)
+- [x] 웹 대시보드 가격 조회 안정화 (개별 조회 방식)
+- [x] Docker/NAS 배포 구조 정리 (CoinTradeBot_Nas/, BinanceTrader_Nas/)
+
+### v2.3.1 주요 변경사항 (2026-01-27)
 - [x] 스윙 홀딩 시스템 도입 (최소 12시간 보유)
 - [x] 적응형 점수 자동 조정 시스템 (4시간 주기)
 - [x] EXE 빌드 시스템 구축
@@ -552,6 +704,6 @@ CoinTradeBot_Release/
 
 ---
 
-**문서 버전**: 2.1
-**작성일**: 2026-01-18
+**문서 버전**: 2.4.0
+**작성일**: 2026-01-31
 **다음 업데이트**: 주요 로직 변경 시

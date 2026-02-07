@@ -5,8 +5,8 @@
 
   "api": {
     "_comment": "업비트 API 키 (필수)",
-    "access_key": "qhRkzE8RudTxiIz5CWC9RP3lDMAeiFJSxHrmKXpk",
-    "secret_key": "jPvG8LlAwQErcxxDsixcszrGjvLAmxoL681iRp9O"
+    "access_key": "",
+    "secret_key": ""
   },
 
   "trading": {

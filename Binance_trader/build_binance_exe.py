@@ -37,6 +37,14 @@ def build_binance_exe():
         "--collect-all", "numpy",
         "--collect-all", "sklearn",
 
+        # XGBoost/LightGBM: DLL + 데이터 파일 수집 (테스트 모듈 제외)
+        "--collect-binaries", "xgboost",
+        "--collect-binaries", "lightgbm",
+        "--collect-data", "xgboost",
+        "--collect-data", "lightgbm",
+        "--copy-metadata", "xgboost",
+        "--copy-metadata", "lightgbm",
+
         # 숨겨진 import
         "--hidden-import", "ccxt",
         "--hidden-import", "ccxt.binance",
@@ -57,6 +65,13 @@ def build_binance_exe():
         "--hidden-import", "json",
         "--hidden-import", "logging",
         "--hidden-import", "datetime",
+        # 고급 ML 라이브러리 (v2.2)
+        "--hidden-import", "xgboost",
+        "--hidden-import", "lightgbm",
+        "--hidden-import", "ta",
+        "--hidden-import", "ta.momentum",
+        "--hidden-import", "ta.trend",
+        "--hidden-import", "ta.volatility",
 
         # 메인 스크립트
         "binance_trader.py"
@@ -87,21 +102,37 @@ def create_release():
     """배포 폴더 생성"""
     release_folder = "BinanceTrader_Release"
 
-    # 보존할 파일 목록
-    preserve_files = [
+    # 보존할 텍스트 파일 목록
+    preserve_text_files = [
+        ".env",
         "binance_settings.json",
         "binance_trading.log",
         "binance_history.json",
-        "binance_positions.json"
+        "binance_positions.json",
     ]
 
-    # 기존 파일들 백업
-    backups = {}
-    for filename in preserve_files:
+    # 보존할 바이너리 파일 목록
+    preserve_binary_files = [
+        "binance_ml_model.pkl",
+        "BinanceDashboard.exe"  # 대시보드 exe 보존
+    ]
+
+    # 기존 텍스트 파일들 백업
+    text_backups = {}
+    for filename in preserve_text_files:
         filepath = os.path.join(release_folder, filename)
         if os.path.exists(filepath):
             with open(filepath, 'r', encoding='utf-8') as f:
-                backups[filename] = f.read()
+                text_backups[filename] = f.read()
+            print(f"[INFO] 기존 {filename} 발견 - 보존됩니다")
+
+    # 기존 바이너리 파일들 백업
+    binary_backups = {}
+    for filename in preserve_binary_files:
+        filepath = os.path.join(release_folder, filename)
+        if os.path.exists(filepath):
+            with open(filepath, 'rb') as f:
+                binary_backups[filename] = f.read()
             print(f"[INFO] 기존 {filename} 발견 - 보존됩니다")
 
     if os.path.exists(release_folder):
@@ -112,10 +143,17 @@ def create_release():
     # exe 복사
     shutil.copy("dist/BinanceTrader.exe", release_folder)
 
-    # 백업된 파일들 복원
-    for filename, content in backups.items():
+    # 백업된 텍스트 파일들 복원
+    for filename, content in text_backups.items():
         filepath = os.path.join(release_folder, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f"[OK] 기존 {filename} 복원 완료")
+
+    # 백업된 바이너리 파일들 복원
+    for filename, content in binary_backups.items():
+        filepath = os.path.join(release_folder, filename)
+        with open(filepath, 'wb') as f:
             f.write(content)
         print(f"[OK] 기존 {filename} 복원 완료")
 
@@ -125,8 +163,8 @@ def create_release():
         create_settings_template(settings_path)
         print(f"[OK] 새 binance_settings.json 생성 완료")
 
-    # README 생성
-    create_readme(release_folder)
+    # 문서 파일 복사 (소스에서 Release 폴더로)
+    copy_docs(release_folder)
 
     print("\n" + "=" * 60)
     print("배포 폴더 생성 완료!")
@@ -142,24 +180,32 @@ def create_settings_template(path):
 
     settings = {
         "_comment": "Binance Trader 설정 파일",
-        "_version": "1.0.0",
+        "_version": "2.2.0",
+
+        "mode": "simulation",
 
         "api": {
             "_comment": "바이낸스 API 키 (필수)",
-            "api_key": "YOUR_BINANCE_API_KEY",
-            "api_secret": "YOUR_BINANCE_SECRET_KEY"
+            "key": "YOUR_BINANCE_API_KEY",
+            "secret": "YOUR_BINANCE_SECRET_KEY"
+        },
+
+        "simulation": {
+            "_comment": "시뮬레이션 초기 잔고",
+            "initial_balance": 10000
         },
 
         "trading": {
             "_comment": "거래 대상 심볼",
-            "symbols": ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
+            "symbols": ["BTC/USDT", "ETH/USDT", "SOL/USDT", "DOGE/USDT"]
         },
 
         "risk": {
             "_comment": "리스크 관리",
-            "position_size": 0.02,
-            "max_positions": 3,
-            "stop_loss": 0.02,
+            "max_position_size": 0.02,
+            "leverage": 3,
+            "max_positions": 4,
+            "stop_loss": 0.015,
             "take_profit": 0.03,
             "daily_loss_limit": 0.05
         },
@@ -167,8 +213,24 @@ def create_settings_template(path):
         "trailing_stop": {
             "_comment": "트레일링 스탑 설정",
             "enabled": True,
-            "activation": 0.02,
-            "distance": 0.01
+            "activation": 0.015,
+            "distance": 0.008
+        },
+
+        "partial_exit": {
+            "_comment": "분할 익절 설정 (v2.1 신규)",
+            "enabled": True,
+            "trigger_profit": 0.015,
+            "exit_ratio": 0.5
+        },
+
+        "market_analysis": {
+            "_comment": "시장 상태 분석 (v2.1 신규)",
+            "enabled": True,
+            "crash_threshold_1h": -3.0,
+            "crash_threshold_4h": -5.0,
+            "rally_threshold_1h": 3.0,
+            "rally_threshold_4h": 5.0
         },
 
         "strategy": {
@@ -178,7 +240,7 @@ def create_settings_template(path):
             "trend_timeframe": "4h",
             "entry_score_threshold": 0.2,
             "allow_sideways_entry": True,
-            "scan_interval": 300
+            "scan_interval": 120
         },
 
         "ml": {
@@ -186,105 +248,32 @@ def create_settings_template(path):
             "enabled": True,
             "min_probability": 0.60,
             "weight": 0.3
+        },
+
+        "advanced_ml": {
+            "_comment": "고급 ML 설정 (v2.2 신규 - XGBoost+LightGBM+RF 앙상블)",
+            "enabled": True,
+            "weight": 0.4
         }
     }
 
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(settings, f, indent=2, ensure_ascii=False)
 
-def create_readme(folder):
-    """README 파일 생성"""
-    readme = """# Binance Trader v1.0
+def copy_docs(folder):
+    """문서 파일 복사 (소스 폴더에서 Release 폴더로)"""
+    docs_to_copy = [
+        "README.md",
+        "TUNING_GUIDE.md",
+        ".env.example"
+    ]
 
-바이낸스 선물 자동 트레이딩 봇
-
-## 사용 방법
-
-### 1. API 키 설정
-1. `binance_settings.json` 파일을 메모장으로 열기
-2. 아래 부분에 바이낸스 API 키 입력:
-   ```json
-   "api": {
-     "api_key": "여기에_API_KEY_입력",
-     "api_secret": "여기에_SECRET_KEY_입력"
-   }
-   ```
-3. 파일 저장
-
-### 2. 실행
-- `BinanceTrader.exe` 더블클릭
-
-## 주요 기능
-
-1. **선물 거래 (LONG/SHORT)**
-   - 상승/하락 양방향 거래 지원
-
-2. **멀티 타임프레임 분석**
-   - 1시간, 4시간 봉 통합 분석
-
-3. **머신러닝 예측**
-   - Random Forest 기반 진입 신호
-
-4. **트레일링 스탑**
-   - 수익 구간 진입 시 자동 추적
-
-5. **리스크 관리**
-   - 손절/익절 자동 실행
-   - 일일 손실 한도
-
-## 설정 변경
-
-### 거래 대상
-```json
-"trading": {
-  "symbols": ["BTC/USDT", "ETH/USDT", "SOL/USDT"]
-}
-```
-
-### 리스크 관리
-```json
-"risk": {
-  "position_size": 0.02,    // 포지션 크기 2%
-  "stop_loss": 0.02,        // 손절 2%
-  "take_profit": 0.03       // 익절 3%
-}
-```
-
-### 스캔 간격
-```json
-"strategy": {
-  "scan_interval": 300      // 5분마다 스캔
-}
-```
-
-## 주의사항
-
-- 선물 거래는 원금 손실 위험이 있습니다
-- API 키는 절대 타인에게 공유하지 마세요
-- 소액으로 테스트 후 사용을 권장합니다
-- 레버리지 설정에 주의하세요
-
-## 문제 해결
-
-### API 키 오류
-- binance_settings.json의 API 키가 정확한지 확인
-- 바이낸스에서 선물 거래 권한 활성화 확인
-- IP 제한 설정 확인
-
-### 거래가 안 됨
-- entry_score_threshold를 낮춰보세요 (0.2 → 0.1)
-- allow_sideways_entry를 true로 설정
-
-### 프로그램이 바로 종료됨
-- 명령 프롬프트에서 실행하여 오류 메시지 확인
-- binance_settings.json 형식 오류 확인
-
----
-Binance Trader v1.0 - Futures Trading Bot
-"""
-
-    with open(os.path.join(folder, "README.md"), 'w', encoding='utf-8') as f:
-        f.write(readme)
+    for doc in docs_to_copy:
+        if os.path.exists(doc):
+            shutil.copy(doc, folder)
+            print(f"[OK] {doc} 복사 완료")
+        else:
+            print(f"[WARN] {doc} 파일을 찾을 수 없습니다")
 
 if __name__ == "__main__":
     build_binance_exe()
